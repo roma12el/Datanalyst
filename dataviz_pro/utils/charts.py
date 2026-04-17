@@ -1,4 +1,3 @@
-# Chart utility stubs — actual charts are in each page module
 def univariate_charts(): pass
 def bivariate_charts(): pass
 def time_series_charts(): pass
