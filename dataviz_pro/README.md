@@ -1,41 +1,35 @@
-# 📊 DataViz Pro v2 — Tableau de bord automatique style Power BI
+# 📊 Power BI Dashboard — Streamlit
 
-Application Streamlit **100% automatique** : upload un fichier Excel/CSV et obtiens un tableau de bord complet.
+Tableau de bord style Power BI en une seule page, avec filtres croisés et graphiques Plotly.
 
-## 🚀 Lancement rapide
+## 🚀 Lancement local
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-L'app s'ouvre sur `http://localhost:8501`
+## ☁️ Déploiement Streamlit Cloud
 
----
+1. Créer repo GitHub public
+2. Pousser ces fichiers
+3. Aller sur share.streamlit.io → New App → sélectionner `app.py` → Deploy
 
-## 📦 Déploiement Streamlit Cloud (GitHub)
+## 📂 Utilisation
 
-1. Crée un repo GitHub public
-2. Pousse ces fichiers :
-```bash
-git init && git add . && git commit -m "DataViz Pro"
-git remote add origin https://github.com/TON_USERNAME/dataviz-pro.git
-git push -u origin main
-```
-3. Va sur **share.streamlit.io** → New app → sélectionne `app.py` → Deploy ✅
+1. **Charger votre fichier** Excel/CSV dans la sidebar
+2. **Configurer les colonnes** : associer vos colonnes aux dimensions et mesures
+3. **Filtrer** avec les menus déroulants en haut
+4. Tous les graphiques se mettent à jour automatiquement
 
----
+## ✅ Colonnes reconnues automatiquement
 
-## ✅ Fonctionnalités (tout automatique)
-
-| Module | Ce que ça fait |
-|--------|---------------|
-| 🔍 Qualité | Profil de chaque colonne, valeurs manquantes, doublons, insights auto |
-| 📈 Distributions | Histogramme + courbe normale pour chaque colonne num, boxplots, barres catég. |
-| 🔗 Corrélations | Matrice heatmap, top corrélations, scatter interactif avec trendline |
-| 🎯 KPI | Métriques, barres, donut, treemap, waterfall, jauges |
-| 📅 Temporel | Série temporelle, saisonnalité, heatmap année×mois |
-| 📤 Export | CSV, Excel, rapport Markdown, données nettoyées |
-
-## 📁 Formats supportés
-`.xlsx` `.xls` `.csv` `.tsv`
+| Type | Utilisation |
+|------|-------------|
+| Étape / Stage | Barres empilées, win rate |
+| Région / Zone | Graphiques horizontaux, pie |
+| Taille / Segment | Donut, grouped bars |
+| Partenaire | Barres groupées |
+| CA / Revenue | KPIs, trend, agrégations |
+| CA Factorisé | Barres factorisées |
+| Date / Période | Trend temporel |

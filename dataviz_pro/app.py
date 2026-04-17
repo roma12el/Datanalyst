@@ -1,76 +1,101 @@
-"""
-DataViz Pro — Tableau de bord automatique style Power BI
-Upload Excel/CSV → analyse complète automatique en un clic
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
-from scipy import stats
-import io
-import warnings
+import io, warnings
 warnings.filterwarnings("ignore")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CONFIG
-# ─────────────────────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="DataViz Pro",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Power BI Dashboard", page_icon="📊", layout="wide")
 
-PALETTE = px.colors.qualitative.Set2
-TEMPLATE = "plotly_white"
-
+# ── CSS ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    .block-container { padding-top: 1.5rem; }
-    .metric-row > div { background:#f8f9ff; border-radius:10px; border-left:4px solid #667eea; padding:0.3rem 0.5rem; }
-    h1 { font-size:1.8rem !important; }
-    h2 { font-size:1.2rem !important; color:#444; border-bottom:2px solid #667eea; padding-bottom:4px; }
-    .stTabs [data-baseweb="tab"] { font-weight:500; }
-    div[data-testid="metric-container"] { background:#f8f9ff; border-radius:8px; }
+    .block-container{padding:0.6rem 1rem 1rem 1rem !important}
+    .stApp > header{display:none}
+    #MainMenu{visibility:hidden}
+    footer{visibility:hidden}
+
+    .pbi-header{
+        background:#2B579A;color:#fff;
+        padding:10px 18px;border-radius:6px;
+        display:flex;align-items:center;justify-content:space-between;
+        margin-bottom:12px;
+    }
+    .pbi-header h1{font-size:16px;font-weight:600;margin:0;color:#fff}
+    .pbi-header span{font-size:12px;opacity:.8}
+
+    .kpi-card{
+        background:#fff;border:1px solid #e0e0e0;border-radius:4px;
+        padding:12px 14px;text-align:left;
+    }
+    .kpi-label{font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .kpi-value{font-size:28px;font-weight:700;color:#1a1a1a;line-height:1.1}
+    .kpi-delta{font-size:11px;margin-top:3px}
+    .delta-up{color:#107C10} .delta-down{color:#d13438}
+
+    div[data-testid="column"]{gap:0 !important}
+    .stSelectbox label{font-size:11px !important;color:#555 !important}
+    .stSelectbox > div > div{font-size:12px !important}
+
+    .chart-title{font-size:11px;font-weight:600;color:#333;text-transform:uppercase;
+                 letter-spacing:.4px;margin-bottom:0px}
+    .chart-sub{font-size:10px;color:#888;margin-bottom:4px}
+
+    div[data-testid="stVerticalBlock"] > div{gap:0}
 </style>
 """, unsafe_allow_html=True)
 
+STAGE_COLORS  = ["#2B579A","#1D9E75","#D4537E","#BA7517","#E24B4A"]
+SIZE_COLORS   = ["#7F77DD","#1D9E75","#D85A30"]
+REG_COLORS    = ["#2B579A","#1D9E75","#D4537E","#BA7517","#534AB7","#0F6E56"]
+PARTNER_COLORS= ["#2B579A","#1D9E75"]
+T = "plotly_white"
+PLOT_CFG = dict(displayModeBar=False)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
+MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+
+# ── HELPERS ──────────────────────────────────────────────────────────────────
+def fmt(v):
+    if v >= 1e9:  return f"${v/1e9:.2f}B"
+    if v >= 1e6:  return f"${v/1e6:.1f}M"
+    if v >= 1e3:  return f"${v/1e3:.0f}K"
+    return f"${v:.0f}"
+
+def small_layout(fig, h=210):
+    fig.update_layout(
+        height=h, template=T, margin=dict(t=8,b=8,l=8,r=8),
+        font=dict(size=10),
+        legend=dict(font=dict(size=9), orientation="h",
+                    yanchor="bottom", y=1.01, xanchor="left", x=0)
+    )
+    return fig
 
 def load_file(f):
-    """Load Excel or CSV into DataFrame. Returns (df, error_str)."""
     name = f.name.lower()
     try:
-        if name.endswith((".xlsx", ".xls")):
+        if name.endswith((".xlsx",".xls")):
             xl = pd.ExcelFile(f)
             sheet = xl.sheet_names[0]
             if len(xl.sheet_names) > 1:
-                sheet = st.sidebar.selectbox("📋 Feuille Excel", xl.sheet_names)
+                sheet = st.sidebar.selectbox("Feuille Excel", xl.sheet_names)
             df = pd.read_excel(f, sheet_name=sheet)
         elif name.endswith(".csv"):
-            raw = f.read(4096).decode("utf-8", errors="replace")
-            f.seek(0)
+            raw = f.read(4096).decode("utf-8", errors="replace"); f.seek(0)
             sep = ";" if raw.count(";") > raw.count(",") else ","
             df = pd.read_csv(f, sep=sep, on_bad_lines="skip")
         elif name.endswith(".tsv"):
             df = pd.read_csv(f, sep="\t", on_bad_lines="skip")
         else:
-            return None, "Format non supporté. Utilisez .xlsx, .xls, .csv ou .tsv"
+            return None, None, "Format non supporté"
         df.columns = [str(c).strip() for c in df.columns]
         df = df.dropna(how="all").reset_index(drop=True)
-        return df, None
+        return df, xl.sheet_names if name.endswith((".xlsx",".xls")) else ["CSV"], None
     except Exception as e:
-        return None, str(e)
+        return None, None, str(e)
 
-
-def classify_columns(df):
-    """Classify columns into numeric, categorical, date."""
+def detect_col_types(df):
     num_cols, cat_cols, date_cols = [], [], []
     for col in df.columns:
         s = df[col]
@@ -79,736 +104,479 @@ def classify_columns(df):
         elif pd.api.types.is_datetime64_any_dtype(s):
             date_cols.append(col)
         else:
-            # Try parsing as date
             try:
-                parsed = pd.to_datetime(s, infer_datetime_format=True, errors="coerce")
-                if parsed.notna().mean() > 0.6:
-                    date_cols.append(col)
-                    continue
-            except Exception:
-                pass
+                p = pd.to_datetime(s, infer_datetime_format=True, errors="coerce")
+                if p.notna().mean() > 0.6:
+                    date_cols.append(col); continue
+            except: pass
             cat_cols.append(col)
     return num_cols, cat_cols, date_cols
 
+def demo_data():
+    np.random.seed(42)
+    STAGES   = ["Lead","Qualify","Solution","Proposal","Finalize"]
+    REGIONS  = ["East","West","Central","North"]
+    SIZES    = ["Small","Medium","Large"]
+    PARTNERS = ["Yes","No"]
+    rows = []
+    for yr in [2022,2023,2024]:
+        for m in range(12):
+            for _ in range(np.random.randint(12,22)):
+                stage   = np.random.choice(STAGES)
+                size    = np.random.choice(SIZES)
+                region  = np.random.choice(REGIONS)
+                partner = np.random.choice(PARTNERS)
+                base = {"Small":np.random.uniform(0.3,1.5),
+                        "Medium":np.random.uniform(1.5,5),
+                        "Large":np.random.uniform(5,15)}[size]
+                fact = {"Lead":.10,"Qualify":.20,"Solution":.35,
+                        "Proposal":.60,"Finalize":.90}[stage]
+                rows.append(dict(
+                    SalesStage=stage, OpportunitySize=size,
+                    Region=region, PartnerDriven=partner,
+                    Year=yr, Month=m,
+                    Revenue=round(base,2),
+                    FactoredRevenue=round(base*fact,2),
+                    Count=1
+                ))
+    return pd.DataFrame(rows)
 
-def safe_fig(fig, height=420):
-    fig.update_layout(height=height, template=TEMPLATE,
-                      margin=dict(t=50, b=30, l=20, r=20))
-    return fig
-
-
-def fmt_number(v):
-    if abs(v) >= 1e9:
-        return f"{v/1e9:.2f}B"
-    if abs(v) >= 1e6:
-        return f"{v/1e6:.2f}M"
-    if abs(v) >= 1e3:
-        return f"{v/1e3:.1f}K"
-    return f"{v:.2f}"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SIDEBAR
-# ─────────────────────────────────────────────────────────────────────────────
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 📊 DataViz Pro")
-    st.caption("Tableau de bord automatique — style Power BI")
+    st.markdown("## 📊 Power BI Dashboard")
     st.divider()
-    uploaded = st.file_uploader(
-        "📂 Charger votre fichier",
-        type=["xlsx", "xls", "csv", "tsv"],
-        help="Excel ou CSV — l'analyse se fait automatiquement"
-    )
+    uploaded = st.file_uploader("Charger votre fichier", type=["xlsx","xls","csv","tsv"])
     st.divider()
-    st.caption("v2.0 — Analyse 100% automatique")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# WELCOME SCREEN
-# ─────────────────────────────────────────────────────────────────────────────
-st.markdown("# 📊 DataViz Pro — Tableau de bord automatique")
-
-if not uploaded:
-    st.info("👈 **Chargez un fichier Excel ou CSV** dans la barre latérale pour démarrer l'analyse automatique.")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown("### 🔍\n**Profiling**\nQualité des données, valeurs manquantes, doublons")
-    c2.markdown("### 📈\n**Distributions**\nHistogrammes, boxplots, violin pour chaque colonne")
-    c3.markdown("### 🔗\n**Corrélations**\nMatrice, scatter plots, analyses bivariées")
-    c4.markdown("### 📅\n**Temporel**\nSéries temporelles, saisonnalité, tendances")
-    st.stop()
-
-# ─────────────────────────────────────────────────────────────────────────────
-# LOAD DATA
-# ─────────────────────────────────────────────────────────────────────────────
-df, err = load_file(uploaded)
-if err or df is None:
-    st.error(f"❌ Erreur de lecture : {err}")
-    st.stop()
-
-num_cols, cat_cols, date_cols = classify_columns(df)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TOP KPI BAR
-# ─────────────────────────────────────────────────────────────────────────────
-missing_total = int(df.isnull().sum().sum())
-missing_pct = round(100 * missing_total / max(df.shape[0] * df.shape[1], 1), 1)
-dupes = int(df.duplicated().sum())
-quality_score = max(0, 100 - missing_pct - (10 if dupes > 0 else 0))
-
-k1, k2, k3, k4, k5, k6 = st.columns(6)
-k1.metric("📋 Lignes", f"{len(df):,}")
-k2.metric("📊 Colonnes", len(df.columns))
-k3.metric("🔢 Numériques", len(num_cols))
-k4.metric("🔤 Catégorielles", len(cat_cols))
-k5.metric("❓ Manquants", f"{missing_pct}%",
-          delta="⚠️ Attention" if missing_pct > 10 else "✅ OK",
-          delta_color="inverse" if missing_pct > 10 else "normal")
-k6.metric("🏆 Qualité", f"{quality_score:.0f}/100",
-          delta="Bon" if quality_score >= 80 else "À améliorer",
-          delta_color="normal" if quality_score >= 80 else "inverse")
-
-st.divider()
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TABS
-# ─────────────────────────────────────────────────────────────────────────────
-tabs = st.tabs([
-    "🔍 Qualité des données",
-    "📈 Distributions",
-    "🔗 Corrélations",
-    "🎯 KPI & Agrégations",
-    "📅 Séries temporelles",
-    "📤 Export"
-])
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — QUALITÉ
-# ══════════════════════════════════════════════════════════════════════════════
-with tabs[0]:
-    st.markdown("## 🔍 Qualité des données")
-
-    # Aperçu
-    with st.expander("📋 Aperçu des données", expanded=True):
-        n = st.slider("Lignes à afficher", 5, 50, 10, key="prev_n")
-        st.dataframe(df.head(n), use_container_width=True)
-
-    # Profil par colonne
-    st.markdown("## 📋 Profil automatique des colonnes")
-    profile_rows = []
-    for col in df.columns:
-        s = df[col]
-        row = {
-            "Colonne": col,
-            "Type": "Numérique" if col in num_cols else ("Date" if col in date_cols else "Catégorielle"),
-            "Manquants": int(s.isnull().sum()),
-            "% Manquant": f"{100 * s.isnull().sum() / len(s):.1f}%",
-            "Uniques": int(s.nunique()),
-        }
-        if col in num_cols:
-            row["Min"] = f"{s.min():.3g}"
-            row["Max"] = f"{s.max():.3g}"
-            row["Moyenne"] = f"{s.mean():.3g}"
-            row["Médiane"] = f"{s.median():.3g}"
-            row["Écart-type"] = f"{s.std():.3g}"
+    if uploaded:
+        df_raw, sheets, err = load_file(uploaded)
+        if err:
+            st.error(err); df_raw = None
         else:
-            top = s.value_counts()
-            row["Min"] = row["Max"] = row["Moyenne"] = row["Médiane"] = row["Écart-type"] = "—"
-            if not top.empty:
-                row["Valeur top"] = f"{top.index[0]} ({top.iloc[0]})"
-            else:
-                row["Valeur top"] = "—"
-        profile_rows.append(row)
-
-    profile_df = pd.DataFrame(profile_rows)
-    st.dataframe(profile_df, use_container_width=True, height=400)
-
-    # Valeurs manquantes
-    st.markdown("## ❓ Valeurs manquantes")
-    missing_series = df.isnull().sum()
-    missing_series = missing_series[missing_series > 0].sort_values(ascending=False)
-
-    if missing_series.empty:
-        st.success("✅ Aucune valeur manquante — dataset propre !")
+            st.success(f"✅ {uploaded.name}\n{len(df_raw):,} lignes × {len(df_raw.columns)} colonnes")
     else:
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            miss_df = pd.DataFrame({
-                "Colonne": missing_series.index,
-                "Manquants": missing_series.values,
-                "% Total": (100 * missing_series / len(df)).round(1)
-            })
-            colors = ["#c0392b" if p > 30 else "#e67e22" if p > 10 else "#f1c40f"
-                      for p in miss_df["% Total"]]
-            fig = go.Figure(go.Bar(
-                x=miss_df["Colonne"], y=miss_df["% Total"],
-                marker_color=colors,
-                text=[f"{v:.1f}%" for v in miss_df["% Total"]],
-                textposition="outside"
-            ))
-            fig.update_layout(
-                title="% Valeurs manquantes par colonne",
-                yaxis_title="% Manquant", height=380, template=TEMPLATE,
-                yaxis_range=[0, min(110, miss_df["% Total"].max() * 1.2)]
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            st.dataframe(miss_df, use_container_width=True, height=380)
+        df_raw = None
 
-    # Doublons
-    st.markdown("## 🔁 Doublons")
-    if dupes == 0:
-        st.success("✅ Aucun doublon détecté.")
+    st.markdown("### ⚙️ Configuration des colonnes")
+    if df_raw is not None:
+        num_cols, cat_cols, date_cols = detect_col_types(df_raw)
+        all_cols = df_raw.columns.tolist()
+
+        st.markdown("**Dimensions (catégorielles)**")
+        dim_stage   = st.selectbox("Étape / Stage",   ["(aucune)"]+cat_cols, key="d_stage")
+        dim_region  = st.selectbox("Région / Zone",   ["(aucune)"]+cat_cols, key="d_region")
+        dim_size    = st.selectbox("Taille / Segment",["(aucune)"]+cat_cols, key="d_size")
+        dim_partner = st.selectbox("Partenaire / Axe",["(aucune)"]+cat_cols, key="d_partner")
+
+        st.markdown("**Mesures (numériques)**")
+        mes_revenue  = st.selectbox("Chiffre d'affaires", ["(aucune)"]+num_cols, key="m_rev")
+        mes_factored = st.selectbox("CA Factorisé",       ["(aucune)"]+num_cols, key="m_fact")
+        mes_count    = st.selectbox("Quantité / Comptage",["(auto)"]+num_cols, key="m_count")
+
+        st.markdown("**Temporel**")
+        dim_date = st.selectbox("Date / Période", ["(aucune)"]+date_cols+cat_cols+num_cols, key="d_date")
+
+        use_demo = False
     else:
-        st.warning(f"⚠️ {dupes} lignes dupliquées ({100*dupes/len(df):.1f}% du dataset)")
-        with st.expander("Voir les doublons"):
-            st.dataframe(df[df.duplicated()].head(20), use_container_width=True)
+        use_demo = True
+        num_cols, cat_cols, date_cols = [], [], []
+        st.info("Aucun fichier chargé — données de démonstration actives.")
+        dim_stage=dim_region=dim_size=dim_partner="(aucune)"
+        mes_revenue=mes_factored=mes_count=dim_date="(aucune)"
 
-    # Insights auto
-    st.markdown("## 🤖 Insights automatiques")
-    insights = []
-    if missing_pct > 20:
-        insights.append(("🔴", f"{missing_pct}% de valeurs manquantes — imputation recommandée."))
-    elif missing_pct > 5:
-        insights.append(("🟡", f"{missing_pct}% de valeurs manquantes — à surveiller."))
-    else:
-        insights.append(("🟢", "Taux de complétude excellent (> 95%)."))
-    if dupes > 0:
-        insights.append(("🟡", f"{dupes} doublons détectés — risque de biais."))
-    for col in num_cols[:6]:
-        skew = df[col].skew()
-        if abs(skew) > 2:
-            insights.append(("🟡", f"'{col}' : très asymétrique (skew={skew:.1f}) — transformation log conseillée."))
-    for col in cat_cols:
-        if df[col].nunique() > 50:
-            insights.append(("🔵", f"'{col}' : haute cardinalité ({df[col].nunique()} valeurs uniques)."))
+    st.divider()
+    st.caption("v3.0 — Power BI Style")
 
-    for icon, msg in insights[:8]:
-        st.markdown(f"{icon} {msg}")
+# ── PREPARE DATA ──────────────────────────────────────────────────────────────
+if use_demo:
+    df = demo_data()
+    col_stage="SalesStage"; col_region="Region"; col_size="OpportunitySize"
+    col_partner="PartnerDriven"; col_rev="Revenue"; col_fact="FactoredRevenue"
+    col_count=None; col_date="Month"; col_year="Year"
+    stages  = sorted(df[col_stage].dropna().unique())
+    regions = sorted(df[col_region].dropna().unique())
+    sizes   = sorted(df[col_size].dropna().unique())
+    partners= sorted(df[col_partner].dropna().unique())
+    years   = sorted(df[col_year].dropna().unique())
+    has_date=True; has_year=True
+else:
+    df = df_raw.copy()
+    col_stage   = dim_stage   if dim_stage   != "(aucune)" else None
+    col_region  = dim_region  if dim_region  != "(aucune)" else None
+    col_size    = dim_size    if dim_size    != "(aucune)" else None
+    col_partner = dim_partner if dim_partner != "(aucune)" else None
+    col_rev     = mes_revenue  if mes_revenue  != "(aucune)" else None
+    col_fact    = mes_factored if mes_factored != "(aucune)" else None
+    col_count   = mes_count    if mes_count    not in ("(auto)","(aucune)") else None
+    col_date    = dim_date    if dim_date    != "(aucune)" else None
+    col_year    = None
 
+    def uniq(c): return sorted(df[c].dropna().unique().tolist()) if c else []
+    stages=uniq(col_stage); regions=uniq(col_region)
+    sizes=uniq(col_size);   partners=uniq(col_partner)
+    years=[]
+    has_date = col_date is not None
+    has_year = False
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — DISTRIBUTIONS
-# ══════════════════════════════════════════════════════════════════════════════
-with tabs[1]:
-    st.markdown("## 📈 Distributions automatiques")
+# ── HEADER ────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="pbi-header">
+  <h1>📊 Sales Performance Dashboard</h1>
+  <span id="ts">Auto-actualisé à chaque filtre</span>
+</div>
+""", unsafe_allow_html=True)
 
-    if num_cols:
-        st.markdown("### 🔢 Colonnes numériques")
+# ── FILTERS ROW ───────────────────────────────────────────────────────────────
+fc = st.columns([1,1,1,1,1,0.6])
+f_stage   = fc[0].selectbox("Stage",   ["Tous"]+list(stages),   key="fs") if col_stage  else None
+f_region  = fc[1].selectbox("Région",  ["Tous"]+list(regions),  key="fr") if col_region else None
+f_size    = fc[2].selectbox("Taille",  ["Tous"]+list(sizes),    key="fz") if col_size   else None
+f_partner = fc[3].selectbox("Partner", ["Tous"]+list(partners), key="fp") if col_partner else None
+f_year    = fc[4].selectbox("Année",   ["Toutes"]+[str(y) for y in years], key="fy") if years else None
+if fc[5].button("↺ Reset", use_container_width=True):
+    for k in ["fs","fr","fz","fp","fy"]:
+        if k in st.session_state: del st.session_state[k]
+    st.rerun()
 
-        # Grid automatique — histogramme pour chaque colonne num (max 12)
-        show_cols = num_cols[:12]
-        n_cols_grid = min(3, len(show_cols))
-        rows_grid = (len(show_cols) + n_cols_grid - 1) // n_cols_grid
+# ── APPLY FILTERS ─────────────────────────────────────────────────────────────
+fdf = df.copy()
+if col_stage  and f_stage  and f_stage  != "Tous":    fdf = fdf[fdf[col_stage]  == f_stage]
+if col_region and f_region and f_region != "Tous":    fdf = fdf[fdf[col_region] == f_region]
+if col_size   and f_size   and f_size   != "Tous":    fdf = fdf[fdf[col_size]   == f_size]
+if col_partner and f_partner and f_partner != "Tous": fdf = fdf[fdf[col_partner]== f_partner]
+if col_year and f_year and f_year != "Toutes":        fdf = fdf[fdf[col_year].astype(str) == f_year]
 
-        for row_i in range(rows_grid):
-            grid_cols = st.columns(n_cols_grid)
-            for col_i in range(n_cols_grid):
-                idx = row_i * n_cols_grid + col_i
-                if idx >= len(show_cols):
-                    break
-                col_name = show_cols[idx]
-                s = df[col_name].dropna()
-                with grid_cols[col_i]:
-                    fig = go.Figure()
-                    fig.add_trace(go.Histogram(
-                        x=s, nbinsx=25,
-                        marker_color="#667eea", opacity=0.8,
-                        histnorm="probability density", name=col_name
-                    ))
-                    # Courbe normale
-                    if len(s) > 5 and s.std() > 0:
-                        xr = np.linspace(s.min(), s.max(), 200)
-                        fig.add_trace(go.Scatter(
-                            x=xr, y=stats.norm.pdf(xr, s.mean(), s.std()),
-                            mode="lines", line=dict(color="#e74c3c", width=2),
-                            name="Normale", showlegend=False
-                        ))
-                    fig.update_layout(
-                        title=dict(text=col_name, font=dict(size=13)),
-                        height=240, template=TEMPLATE,
-                        margin=dict(t=35, b=20, l=20, r=10),
-                        showlegend=False,
-                        xaxis=dict(title=None),
-                        yaxis=dict(title=None)
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+n = len(fdf)
+total_rev  = fdf[col_rev].sum()   if col_rev   else 0
+total_fact = fdf[col_fact].sum()  if col_fact  else 0
+avg_rev    = total_rev / max(n,1)
+win_count  = fdf[fdf[col_stage]=="Finalize"].shape[0] if col_stage else 0
+win_rate   = round(100*win_count/max(n,1))
 
-        # Boxplot comparatif
-        st.markdown("### 📦 Boxplots comparatifs")
-        sel_box = st.multiselect(
-            "Colonnes à comparer (boxplot)",
-            num_cols, default=num_cols[:min(5, len(num_cols))],
-            key="box_sel"
-        )
-        if sel_box:
-            fig_box = go.Figure()
-            for i, col in enumerate(sel_box):
-                s = df[col].dropna()
-                fig_box.add_trace(go.Box(
-                    y=s, name=col,
-                    marker_color=PALETTE[i % len(PALETTE)],
-                    boxpoints="outliers"
-                ))
-            fig_box.update_layout(
-                title="Comparaison des distributions — Boxplot",
-                height=450, template=TEMPLATE
-            )
-            st.plotly_chart(fig_box, use_container_width=True)
+# ── KPI CARDS ─────────────────────────────────────────────────────────────────
+k1,k2,k3,k4,k5 = st.columns(5)
+def kpi(col, label, val, delta, cls):
+    col.markdown(f"""
+    <div class="kpi-card">
+      <div class="kpi-label">{label}</div>
+      <div class="kpi-value">{val}</div>
+      <div class="kpi-delta {cls}">{delta}</div>
+    </div>""", unsafe_allow_html=True)
 
-    if cat_cols:
-        st.markdown("### 🔤 Colonnes catégorielles")
-        show_cat = cat_cols[:9]
-        n_cols_c = min(3, len(show_cat))
+kpi(k1,"Opportunity count",f"{n:,}","Total enregistrements","delta-up")
+kpi(k2,"Total revenue",    fmt(total_rev) if col_rev else "—","Chiffre d'affaires","delta-up")
+kpi(k3,"Avg revenue / opp",fmt(avg_rev)  if col_rev else "—","Moyenne par opportunité","delta-up")
+kpi(k4,"Factored revenue", fmt(total_fact)if col_fact else "—","CA pondéré par stage","delta-up")
+kpi(k5,"Win rate",         f"{win_rate}%" if col_stage else "—","% Finalize / Total","delta-up" if win_rate>30 else "delta-down")
 
-        for row_i in range((len(show_cat) + n_cols_c - 1) // n_cols_c):
-            grid = st.columns(n_cols_c)
-            for col_i in range(n_cols_c):
-                idx = row_i * n_cols_c + col_i
-                if idx >= len(show_cat):
-                    break
-                col_name = show_cat[idx]
-                vc = df[col_name].value_counts().head(10)
-                with grid[col_i]:
-                    fig = px.bar(
-                        x=vc.index.astype(str), y=vc.values,
-                        color=vc.values,
-                        color_continuous_scale="Blues",
-                        labels={"x": "", "y": ""},
-                        title=col_name
-                    )
-                    fig.update_layout(
-                        height=240, template=TEMPLATE,
-                        margin=dict(t=35, b=20, l=10, r=10),
-                        coloraxis_showscale=False,
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+st.markdown("<div style='margin:6px 0'></div>", unsafe_allow_html=True)
 
+# ── ROW 2 — 4 CHARTS ─────────────────────────────────────────────────────────
+r2a, r2b, r2c, r2d = st.columns([2,2,1.5,1.5])
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — CORRÉLATIONS
-# ══════════════════════════════════════════════════════════════════════════════
-with tabs[2]:
-    st.markdown("## 🔗 Corrélations & Relations")
-
-    if len(num_cols) < 2:
-        st.info("Au moins 2 colonnes numériques sont nécessaires.")
-    else:
-        method = st.radio("Méthode de corrélation", ["pearson", "spearman"], horizontal=True)
-        corr = df[num_cols].corr(method=method).round(3)
-
-        col1, col2 = st.columns([3, 2])
-        with col1:
-            fig_corr = go.Figure(go.Heatmap(
-                z=corr.values,
-                x=corr.columns.tolist(),
-                y=corr.index.tolist(),
-                colorscale="RdBu", zmid=0, zmin=-1, zmax=1,
-                text=corr.values.round(2),
-                texttemplate="%{text}",
-                textfont={"size": 9},
-                colorbar=dict(title="r")
-            ))
-            fig_corr.update_layout(
-                title="Matrice de corrélation",
-                height=max(420, 40 * len(num_cols)),
-                template=TEMPLATE
-            )
-            st.plotly_chart(fig_corr, use_container_width=True)
-
-        with col2:
-            # Top corrélations
-            st.markdown("#### Top corrélations")
-            mask = np.triu(np.ones(corr.shape, dtype=bool), k=1)
-            pairs = (
-                corr.where(mask).stack()
-                .reset_index()
-            )
-            pairs.columns = ["Var A", "Var B", "r"]
-            pairs["|r|"] = pairs["r"].abs()
-            pairs = pairs.sort_values("|r|", ascending=False).head(15)
-            pairs["Paire"] = pairs["Var A"] + " × " + pairs["Var B"]
-
-            fig_pairs = px.bar(
-                pairs.head(10), x="r", y="Paire",
-                orientation="h",
-                color="r", color_continuous_scale="RdBu",
-                range_color=[-1, 1],
-                title="Top 10 corrélations"
-            )
-            fig_pairs.update_layout(height=420, template=TEMPLATE)
-            st.plotly_chart(fig_pairs, use_container_width=True)
-
-        # Scatter interactif
-        st.markdown("### 🔵 Scatter plot interactif")
-        c1, c2, c3 = st.columns(3)
-        x_col = c1.selectbox("Axe X", num_cols, index=0, key="sc_x")
-        y_col = c2.selectbox("Axe Y", num_cols, index=min(1, len(num_cols)-1), key="sc_y")
-        col_c = c3.selectbox("Couleur", ["(aucune)"] + cat_cols + num_cols, key="sc_c")
-
-        color_arg = None if col_c == "(aucune)" else col_c
-        fig_sc = px.scatter(
-            df, x=x_col, y=y_col, color=color_arg,
-            trendline="ols",
-            opacity=0.65,
-            color_discrete_sequence=PALETTE,
-            title=f"{x_col} vs {y_col}",
-            hover_data=df.columns.tolist()[:4]
-        )
-        fig_sc.update_layout(height=450, template=TEMPLATE)
-        st.plotly_chart(fig_sc, use_container_width=True)
-
-        # Pearson stats
-        valid = df[[x_col, y_col]].dropna()
-        if len(valid) > 2:
-            r, p = stats.pearsonr(valid[x_col], valid[y_col])
-            rho, p2 = stats.spearmanr(valid[x_col], valid[y_col])
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Pearson r", f"{r:.4f}", delta=f"p={p:.4f}")
-            m2.metric("Spearman ρ", f"{rho:.4f}", delta=f"p={p2:.4f}")
-            m3.metric("R²", f"{r**2:.4f}")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — KPI & AGRÉGATIONS
-# ══════════════════════════════════════════════════════════════════════════════
-with tabs[3]:
-    st.markdown("## 🎯 KPI & Agrégations automatiques")
-
-    if not num_cols:
-        st.info("Aucune colonne numérique disponible.")
-    else:
-        # Auto KPIs
-        st.markdown("### 📌 Métriques clés")
-        kpi_cols = num_cols[:6]
-        ks = st.columns(len(kpi_cols))
-        for i, col in enumerate(kpi_cols):
-            s = df[col].dropna()
-            with ks[i]:
-                st.metric(
-                    label=col,
-                    value=fmt_number(s.sum()),
-                    delta=f"moy: {fmt_number(s.mean())}"
-                )
-
-        if cat_cols:
-            st.markdown("### 📊 Analyse par catégorie")
-            c1, c2, c3 = st.columns(3)
-            cat_sel = c1.selectbox("Regrouper par", cat_cols, key="kpi_cat")
-            val_sel = c2.selectbox("Valeur", num_cols, key="kpi_val")
-            agg_sel = c3.selectbox("Agrégation", ["sum", "mean", "count", "median", "max", "min"], key="kpi_agg")
-            top_n = st.slider("Top N catégories", 5, 30, 12, key="kpi_n")
-
-            agg_df = (
-                df.groupby(cat_sel)[val_sel]
-                .agg(agg_sel)
-                .sort_values(ascending=False)
-                .head(top_n)
-                .reset_index()
-            )
-            agg_df.columns = [cat_sel, "Valeur"]
-
-            col1, col2 = st.columns(2)
-            with col1:
-                fig_bar = px.bar(
-                    agg_df, x=cat_sel, y="Valeur",
-                    color="Valeur", color_continuous_scale="Blues",
-                    text=agg_df["Valeur"].apply(fmt_number),
-                    title=f"{agg_sel.upper()} de {val_sel} par {cat_sel}"
-                )
-                fig_bar.update_traces(textposition="outside")
-                fig_bar.update_layout(height=420, template=TEMPLATE, coloraxis_showscale=False)
-                st.plotly_chart(fig_bar, use_container_width=True)
-
-            with col2:
-                fig_pie = px.pie(
-                    agg_df, values="Valeur", names=cat_sel,
-                    hole=0.45, title="Répartition",
-                    color_discrete_sequence=PALETTE
-                )
-                fig_pie.update_traces(textposition="inside", textinfo="percent+label")
-                fig_pie.update_layout(height=420, template=TEMPLATE)
-                st.plotly_chart(fig_pie, use_container_width=True)
-
-            # Treemap
-            fig_tree = px.treemap(
-                agg_df,
-                path=[px.Constant("Total"), cat_sel],
-                values="Valeur",
-                color="Valeur",
-                color_continuous_scale="RdYlGn",
-                title=f"Treemap — {val_sel} par {cat_sel}"
-            )
-            fig_tree.update_traces(textinfo="label+value+percent root")
-            fig_tree.update_layout(height=450, template=TEMPLATE)
-            st.plotly_chart(fig_tree, use_container_width=True)
-
-            # Waterfall top 8
-            wf = agg_df.head(8).copy()
-            fig_wf = go.Figure(go.Waterfall(
-                orientation="v",
-                measure=["relative"] * len(wf) + ["total"],
-                x=wf[cat_sel].astype(str).tolist() + ["TOTAL"],
-                y=wf["Valeur"].tolist() + [wf["Valeur"].sum()],
-                text=[fmt_number(v) for v in wf["Valeur"].tolist() + [wf["Valeur"].sum()]],
-                textposition="outside",
-                increasing={"marker": {"color": "#27ae60"}},
-                decreasing={"marker": {"color": "#c0392b"}},
-                totals={"marker": {"color": "#667eea"}}
-            ))
-            fig_wf.update_layout(
-                title=f"Waterfall — {val_sel}",
-                height=420, template=TEMPLATE, waterfallgap=0.3
-            )
-            st.plotly_chart(fig_wf, use_container_width=True)
-
-        # Jauges automatiques
-        st.markdown("### 🎯 Jauges KPI")
-        gauge_sel = st.multiselect("Colonnes à afficher en jauge", num_cols, default=num_cols[:3], key="gauge_sel")
-        if gauge_sel:
-            gcols = st.columns(len(gauge_sel))
-            for i, col_name in enumerate(gauge_sel):
-                s = df[col_name].dropna()
-                if len(s) == 0:
-                    continue
-                mn, mx, mean_, med_ = float(s.min()), float(s.max()), float(s.mean()), float(s.median())
-                fig_g = go.Figure(go.Indicator(
-                    mode="gauge+number+delta",
-                    value=round(mean_, 2),
-                    delta={"reference": round(med_, 2)},
-                    title={"text": col_name, "font": {"size": 13}},
-                    gauge={
-                        "axis": {"range": [mn, mx]},
-                        "bar": {"color": "#667eea"},
-                        "steps": [
-                            {"range": [mn, mn+(mx-mn)/3], "color": "#fadcdc"},
-                            {"range": [mn+(mx-mn)/3, mn+2*(mx-mn)/3], "color": "#fff3cd"},
-                            {"range": [mn+2*(mx-mn)/3, mx], "color": "#d4edda"},
-                        ]
-                    }
-                ))
-                fig_g.update_layout(height=270, template=TEMPLATE, margin=dict(t=50, b=0))
-                with gcols[i]:
-                    st.plotly_chart(fig_g, use_container_width=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 5 — SÉRIES TEMPORELLES
-# ══════════════════════════════════════════════════════════════════════════════
-with tabs[4]:
-    st.markdown("## 📅 Séries temporelles")
-
-    # Detect date columns
-    detected_dates = []
-    for col in df.columns:
-        s = df[col]
-        if pd.api.types.is_datetime64_any_dtype(s):
-            detected_dates.append((col, s))
-        elif col in cat_cols:
+# Chart 1: Stacked % by period × stage
+with r2a:
+    st.markdown('<div class="chart-title">Opportunity count — par période & stage</div>', unsafe_allow_html=True)
+    if col_stage and col_date and n > 0:
+        if use_demo:
+            fdf["_period"] = fdf["Month"].apply(lambda x: MONTHS[int(x)] if pd.notna(x) else "?")
+            period_order = MONTHS
+        else:
             try:
-                parsed = pd.to_datetime(s, infer_datetime_format=True, errors="coerce")
-                if parsed.notna().mean() > 0.5:
-                    detected_dates.append((col, parsed))
-            except Exception:
-                pass
+                fdf["_period"] = pd.to_datetime(fdf[col_date], infer_datetime_format=True, errors="coerce").dt.strftime("%b %Y")
+            except:
+                fdf["_period"] = fdf[col_date].astype(str)
+            period_order = sorted(fdf["_period"].dropna().unique())[:24]
 
-    if not detected_dates:
-        st.info("🔍 Aucune colonne de date détectée automatiquement.")
-        st.markdown("**Conseil :** Assurez-vous que vos dates sont dans un format standard (ex: `2024-01-15`, `15/01/2024`).")
-    elif not num_cols:
-        st.info("Aucune colonne numérique pour l'axe Y.")
-    else:
-        date_names = [c for c, _ in detected_dates]
-        date_dict = dict(detected_dates)
+        piv = fdf.groupby(["_period", col_stage]).size().reset_index(name="cnt")
+        totals = piv.groupby("_period")["cnt"].transform("sum")
+        piv["pct"] = (100 * piv["cnt"] / totals.replace(0,1)).round(1)
 
-        c1, c2 = st.columns(2)
-        date_col_sel = c1.selectbox("Colonne de date", date_names, key="ts_d")
-        y_col_sel = c2.selectbox("Valeur", num_cols, key="ts_y")
-
-        date_series = date_dict[date_col_sel]
-        ts_df = pd.DataFrame({"date": date_series, "value": df[y_col_sel]}).dropna().sort_values("date")
-
-        if len(ts_df) < 3:
-            st.warning("Pas assez de données valides.")
-        else:
-            c3, c4 = st.columns(2)
-            gran = c3.selectbox("Granularité", ["Original", "Jour", "Semaine", "Mois", "Trimestre", "Année"], key="ts_g")
-            agg_t = c4.selectbox("Agrégation", ["sum", "mean", "median", "max", "min"], key="ts_a")
-
-            gran_map = {"Jour": "D", "Semaine": "W", "Mois": "ME", "Trimestre": "QE", "Année": "YE"}
-            if gran != "Original":
-                ts_df = ts_df.set_index("date")["value"].resample(gran_map[gran]).agg(agg_t).reset_index()
-                ts_df.columns = ["date", "value"]
-                ts_df = ts_df.dropna()
-
-            # MA
-            ma_list = st.multiselect("Moyennes mobiles", [7, 14, 30, 90], default=[], key="ts_ma")
-
-            # Ligne principale
-            fig_ts = go.Figure()
-            fig_ts.add_trace(go.Scatter(
-                x=ts_df["date"], y=ts_df["value"],
-                mode="lines", name=y_col_sel,
-                line=dict(color="#667eea", width=1.8),
-                fill="tozeroy", fillcolor="rgba(102,126,234,0.08)"
+        fig = go.Figure()
+        for i, st_val in enumerate(stages[:8]):
+            sub = piv[piv[col_stage]==st_val]
+            sub = sub.set_index("_period").reindex(period_order).fillna(0).reset_index()
+            fig.add_trace(go.Bar(
+                name=st_val, x=sub["_period"], y=sub["pct"],
+                marker_color=STAGE_COLORS[i % len(STAGE_COLORS)],
             ))
-            for ma in ma_list:
-                if len(ts_df) > ma:
-                    fig_ts.add_trace(go.Scatter(
-                        x=ts_df["date"],
-                        y=ts_df["value"].rolling(ma).mean(),
-                        mode="lines", name=f"MA {ma}",
-                        line=dict(width=1.5, dash="dot")
-                    ))
-            fig_ts.update_layout(
-                title=f"Évolution — {y_col_sel}",
-                height=420, template=TEMPLATE,
-                hovermode="x unified",
-                xaxis=dict(
-                    rangeslider=dict(visible=True),
-                    rangeselector=dict(buttons=[
-                        dict(count=1, label="1M", step="month", stepmode="backward"),
-                        dict(count=3, label="3M", step="month", stepmode="backward"),
-                        dict(count=6, label="6M", step="month", stepmode="backward"),
-                        dict(count=1, label="1A", step="year", stepmode="backward"),
-                        dict(step="all", label="Tout")
-                    ])
-                )
-            )
-            st.plotly_chart(fig_ts, use_container_width=True)
+        fig.update_layout(
+            barmode="stack",
+            xaxis=dict(tickfont=dict(size=8), tickangle=-45),
+            yaxis=dict(ticksuffix="%", tickfont=dict(size=9)),
+            legend=dict(font=dict(size=8), orientation="h", y=1.08),
+            **dict(height=220, template=T, margin=dict(t=25,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Stage + Date dans la sidebar")
 
-            # Stats rapides
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total", fmt_number(ts_df["value"].sum()))
-            m2.metric("Moyenne", fmt_number(ts_df["value"].mean()))
-            m3.metric("Max", fmt_number(ts_df["value"].max()))
-            tendance = "↑ Hausse" if ts_df["value"].iloc[-1] > ts_df["value"].iloc[0] else "↓ Baisse"
-            m4.metric("Tendance", tendance)
+# Chart 2: Region × size grouped horizontal
+with r2b:
+    st.markdown('<div class="chart-title">Opportunity count — région & taille</div>', unsafe_allow_html=True)
+    if col_region and col_size and n > 0:
+        grp = fdf.groupby([col_region, col_size]).size().reset_index(name="cnt")
+        fig = go.Figure()
+        for i, sz in enumerate(sizes[:6]):
+            sub = grp[grp[col_size]==sz]
+            fig.add_trace(go.Bar(
+                name=sz, y=sub[col_region], x=sub["cnt"],
+                orientation="h",
+                marker_color=SIZE_COLORS[i % len(SIZE_COLORS)],
+            ))
+        fig.update_layout(
+            barmode="group",
+            xaxis=dict(tickfont=dict(size=9)),
+            yaxis=dict(tickfont=dict(size=9)),
+            legend=dict(font=dict(size=8), orientation="h", y=1.08),
+            **dict(height=220, template=T, margin=dict(t=25,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Région + Taille dans la sidebar")
 
-            # Saisonnalité
-            st.markdown("### 📆 Saisonnalité")
-            ts_work = ts_df.copy()
-            ts_work["month"] = ts_work["date"].dt.month
-            ts_work["month_name"] = ts_work["date"].dt.month_name()
-            ts_work["weekday"] = ts_work["date"].dt.day_name()
-            ts_work["year"] = ts_work["date"].dt.year
+# Chart 3: Stage × partner stacked %
+with r2c:
+    st.markdown('<div class="chart-title">Count par stage — partner</div>', unsafe_allow_html=True)
+    if col_stage and col_partner and n > 0:
+        grp = fdf.groupby([col_stage, col_partner]).size().reset_index(name="cnt")
+        tot = grp.groupby(col_stage)["cnt"].transform("sum")
+        grp["pct"] = (100 * grp["cnt"] / tot.replace(0,1)).round(1)
+        fig = go.Figure()
+        for i, pv in enumerate(partners[:4]):
+            sub = grp[grp[col_partner]==pv]
+            fig.add_trace(go.Bar(
+                name=str(pv), x=sub[col_stage], y=sub["pct"],
+                marker_color=PARTNER_COLORS[i % len(PARTNER_COLORS)],
+            ))
+        fig.update_layout(
+            barmode="stack",
+            xaxis=dict(tickfont=dict(size=8), tickangle=-30),
+            yaxis=dict(ticksuffix="%", tickfont=dict(size=9)),
+            legend=dict(font=dict(size=8), orientation="h", y=1.08),
+            **dict(height=220, template=T, margin=dict(t=25,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Stage + Partner")
 
-            months_order = ["January","February","March","April","May","June",
-                            "July","August","September","October","November","December"]
-            days_order = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+# Chart 4: Revenue pie by region
+with r2d:
+    st.markdown('<div class="chart-title">Revenue — par région</div>', unsafe_allow_html=True)
+    if col_region and col_rev and n > 0:
+        grp = fdf.groupby(col_region)[col_rev].sum().reset_index()
+        fig = go.Figure(go.Pie(
+            labels=grp[col_region], values=grp[col_rev].round(2),
+            hole=0.4,
+            marker=dict(colors=REG_COLORS[:len(grp)], line=dict(color="#fff",width=1)),
+            textfont=dict(size=9),
+        ))
+        fig.update_layout(
+            legend=dict(font=dict(size=8), orientation="v", x=1),
+            **dict(height=220, template=T, margin=dict(t=10,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    elif not col_rev:
+        # Pie by count
+        grp = fdf.groupby(col_region).size().reset_index(name="cnt") if col_region else None
+        if grp is not None:
+            fig = go.Figure(go.Pie(
+                labels=grp[col_region], values=grp["cnt"], hole=0.4,
+                marker=dict(colors=REG_COLORS[:len(grp)], line=dict(color="#fff",width=1)),
+                textfont=dict(size=9)
+            ))
+            fig.update_layout(height=220, template=T, margin=dict(t=10,b=5,l=5,r=5))
+            st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Région dans la sidebar")
 
-            sc1, sc2 = st.columns(2)
-            with sc1:
-                monthly = (ts_work.groupby("month_name")["value"].mean()
-                           .reindex(months_order).dropna())
-                if not monthly.empty:
-                    fig_m = px.bar(
-                        x=monthly.index, y=monthly.values,
-                        color=monthly.values, color_continuous_scale="Blues",
-                        title="Moyenne par mois",
-                        labels={"x": "", "y": ""}
-                    )
-                    fig_m.update_layout(height=320, template=TEMPLATE, coloraxis_showscale=False)
-                    st.plotly_chart(fig_m, use_container_width=True)
+st.markdown("<div style='margin:4px 0'></div>", unsafe_allow_html=True)
 
-            with sc2:
-                daily = (ts_work.groupby("weekday")["value"].mean()
-                         .reindex(days_order).dropna())
-                if not daily.empty:
-                    fig_d = px.bar(
-                        x=daily.index, y=daily.values,
-                        color=daily.values, color_continuous_scale="Purples",
-                        title="Moyenne par jour de semaine",
-                        labels={"x": "", "y": ""}
-                    )
-                    fig_d.update_layout(height=320, template=TEMPLATE, coloraxis_showscale=False)
-                    st.plotly_chart(fig_d, use_container_width=True)
+# ── ROW 3 — 3 CHARTS ─────────────────────────────────────────────────────────
+r3a, r3b, r3c = st.columns([1.5, 2, 1.5])
 
-            # Heatmap année × mois
-            pivot = ts_work.pivot_table(values="value", index="year", columns="month_name", aggfunc="sum")
-            pivot = pivot.reindex(columns=[m for m in months_order if m in pivot.columns])
-            if not pivot.empty and len(pivot) > 1:
-                fig_heat = px.imshow(
-                    pivot, title="Heatmap année × mois",
-                    color_continuous_scale="RdYlGn", aspect="auto"
-                )
-                fig_heat.update_layout(height=max(300, 60*len(pivot)), template=TEMPLATE)
-                st.plotly_chart(fig_heat, use_container_width=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 6 — EXPORT
-# ══════════════════════════════════════════════════════════════════════════════
-with tabs[5]:
-    st.markdown("## 📤 Export des données")
-
-    # Rapport texte auto
-    st.markdown("### 📋 Rapport exécutif")
-    lines = [
-        f"# Rapport d'analyse — {uploaded.name}",
-        f"",
-        f"## Vue d'ensemble",
-        f"- Lignes : {len(df):,}",
-        f"- Colonnes : {len(df.columns)}",
-        f"- Numériques : {len(num_cols)} — {', '.join(num_cols[:5])}",
-        f"- Catégorielles : {len(cat_cols)} — {', '.join(cat_cols[:5])}",
-        f"- Valeurs manquantes : {missing_pct}%",
-        f"- Doublons : {dupes}",
-        f"- Score qualité : {quality_score:.0f}/100",
-        f"",
-        f"## Statistiques numériques",
-        df[num_cols].describe().round(3).to_string() if num_cols else "—",
-        f"",
-        f"## Insights",
-    ]
-    for icon, msg in insights[:8]:
-        lines.append(f"- {msg}")
-
-    rapport = "\n".join(lines)
-    st.text_area("Rapport", rapport, height=300)
-
-    # Téléchargements
-    st.markdown("### ⬇️ Téléchargements")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        csv_bytes = df.to_csv(index=False).encode("utf-8")
-        st.download_button("⬇️ CSV original", csv_bytes, f"{uploaded.name.split('.')[0]}.csv", "text/csv")
-
-    with col2:
-        buf = io.BytesIO()
-        with pd.ExcelWriter(buf, engine="openpyxl") as w:
-            df.to_excel(w, index=False, sheet_name="Data")
-        st.download_button("⬇️ Excel original", buf.getvalue(),
-                           f"{uploaded.name.split('.')[0]}_export.xlsx",
-                           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    with col3:
-        st.download_button("⬇️ Rapport .md", rapport.encode("utf-8"),
-                           f"rapport_{uploaded.name.split('.')[0]}.md", "text/markdown")
-
-    # Nettoyage rapide
-    st.markdown("### 🔧 Données nettoyées")
-    clean = df.copy()
-    c1, c2 = st.columns(2)
-    if c1.checkbox("Supprimer doublons"):
-        clean = clean.drop_duplicates()
-        c1.caption(f"→ {len(df) - len(clean)} doublons supprimés")
-    fill_strategy = c2.selectbox("Imputation numériques",
-                                 ["Ne rien faire", "Moyenne", "Médiane", "0"])
-    if fill_strategy != "Ne rien faire" and num_cols:
-        nc = clean.select_dtypes(include=np.number).columns
-        if fill_strategy == "Moyenne":
-            clean[nc] = clean[nc].fillna(clean[nc].mean())
-        elif fill_strategy == "Médiane":
-            clean[nc] = clean[nc].fillna(clean[nc].median())
+# Revenue by stage × partner
+with r3a:
+    st.markdown('<div class="chart-title">Revenue par stage — partner driven</div>', unsafe_allow_html=True)
+    if col_stage and col_rev and n > 0:
+        grp = fdf.groupby([col_stage]+([col_partner] if col_partner else []))[col_rev].sum().reset_index()
+        fig = go.Figure()
+        if col_partner:
+            for i, pv in enumerate(partners[:4]):
+                sub = grp[grp[col_partner]==pv]
+                fig.add_trace(go.Bar(
+                    name=str(pv), x=sub[col_stage], y=sub[col_rev].round(2),
+                    marker_color=PARTNER_COLORS[i % len(PARTNER_COLORS)],
+                ))
+            bm = "group"
         else:
-            clean[nc] = clean[nc].fillna(0)
+            fig.add_trace(go.Bar(x=grp[col_stage], y=grp[col_rev].round(2),
+                                  marker_color=STAGE_COLORS))
+            bm = "relative"
+        fig.update_layout(
+            barmode=bm,
+            xaxis=dict(tickfont=dict(size=8), tickangle=-30),
+            yaxis=dict(tickfont=dict(size=9)),
+            legend=dict(font=dict(size=8), orientation="h", y=1.08),
+            **dict(height=210, template=T, margin=dict(t=25,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Stage + Revenue")
 
-    st.markdown(f"Dataset nettoyé : **{len(clean):,} lignes × {len(clean.columns)} colonnes**")
-    buf2 = io.BytesIO()
-    with pd.ExcelWriter(buf2, engine="openpyxl") as w:
-        clean.to_excel(w, index=False)
-    st.download_button("⬇️ Télécharger données nettoyées (Excel)", buf2.getvalue(),
-                       "data_cleaned.xlsx",
-                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+# Avg revenue by region × size horizontal
+with r3b:
+    st.markdown('<div class="chart-title">Avg revenue — région & taille</div>', unsafe_allow_html=True)
+    if col_region and col_rev and n > 0:
+        if col_size:
+            grp = fdf.groupby([col_region, col_size])[col_rev].mean().reset_index()
+            fig = go.Figure()
+            for i, sz in enumerate(sizes[:6]):
+                sub = grp[grp[col_size]==sz]
+                fig.add_trace(go.Bar(
+                    name=sz, y=sub[col_region], x=sub[col_rev].round(2),
+                    orientation="h",
+                    marker_color=SIZE_COLORS[i % len(SIZE_COLORS)],
+                ))
+            bm = "group"
+        else:
+            grp = fdf.groupby(col_region)[col_rev].mean().reset_index()
+            fig = go.Figure(go.Bar(
+                y=grp[col_region], x=grp[col_rev].round(2),
+                orientation="h", marker_color=REG_COLORS[:len(grp)]
+            ))
+            bm = "relative"
+        fig.update_layout(
+            barmode=bm,
+            xaxis=dict(tickfont=dict(size=9)),
+            yaxis=dict(tickfont=dict(size=9)),
+            legend=dict(font=dict(size=8), orientation="h", y=1.08),
+            **dict(height=210, template=T, margin=dict(t=25,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Région + Revenue")
+
+# Opportunity count by size donut
+with r3c:
+    st.markdown('<div class="chart-title">Count par taille — donut</div>', unsafe_allow_html=True)
+    if col_size and n > 0:
+        grp = fdf.groupby(col_size).size().reset_index(name="cnt")
+        fig = go.Figure(go.Pie(
+            labels=grp[col_size], values=grp["cnt"], hole=0.5,
+            marker=dict(colors=SIZE_COLORS[:len(grp)], line=dict(color="#fff",width=1)),
+            textfont=dict(size=9),
+        ))
+        fig.update_layout(
+            legend=dict(font=dict(size=8), orientation="v"),
+            **dict(height=210, template=T, margin=dict(t=10,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Taille dans la sidebar")
+
+st.markdown("<div style='margin:4px 0'></div>", unsafe_allow_html=True)
+
+# ── ROW 4 — 3 CHARTS ─────────────────────────────────────────────────────────
+r4a, r4b, r4c = st.columns([2, 1.5, 1.5])
+
+# Revenue trend line
+with r4a:
+    st.markdown('<div class="chart-title">Revenue trend — évolution mensuelle</div>', unsafe_allow_html=True)
+    if col_date and col_rev and n > 0:
+        if use_demo:
+            grp = fdf.groupby("Month")[col_rev].sum().reset_index()
+            grp["_lbl"] = grp["Month"].apply(lambda x: MONTHS[int(x)])
+            x_vals = grp["_lbl"]; y_vals = grp[col_rev].round(2)
+        else:
+            try:
+                fdf["_dt"] = pd.to_datetime(fdf[col_date], infer_datetime_format=True, errors="coerce")
+                grp = fdf.dropna(subset=["_dt"]).groupby("_dt")[col_rev].sum().reset_index().sort_values("_dt")
+                x_vals = grp["_dt"]; y_vals = grp[col_rev].round(2)
+            except:
+                grp = fdf.groupby(col_date)[col_rev].sum().reset_index()
+                x_vals = grp[col_date]; y_vals = grp[col_rev].round(2)
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x_vals, y=y_vals, mode="lines+markers",
+            fill="tozeroy", fillcolor="rgba(43,87,154,0.08)",
+            line=dict(color="#2B579A", width=2),
+            marker=dict(size=4),
+        ))
+        fig.update_layout(
+            xaxis=dict(tickfont=dict(size=8), tickangle=-30),
+            yaxis=dict(tickfont=dict(size=9)),
+            **dict(height=195, template=T, margin=dict(t=10,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Date + Revenue")
+
+# Factored revenue by stage
+with r4b:
+    st.markdown('<div class="chart-title">Factored revenue par stage</div>', unsafe_allow_html=True)
+    if col_stage and col_fact and n > 0:
+        grp = fdf.groupby(col_stage)[col_fact].sum().reset_index().sort_values(col_fact, ascending=False)
+        fig = go.Figure(go.Bar(
+            x=grp[col_stage], y=grp[col_fact].round(2),
+            marker_color=STAGE_COLORS[:len(grp)],
+            text=grp[col_fact].apply(fmt), textposition="outside", textfont=dict(size=8)
+        ))
+        fig.update_layout(
+            xaxis=dict(tickfont=dict(size=8), tickangle=-30),
+            yaxis=dict(tickfont=dict(size=9)),
+            **dict(height=195, template=T, margin=dict(t=10,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    elif col_stage and n > 0:
+        grp = fdf.groupby(col_stage).size().reset_index(name="cnt")
+        fig = go.Figure(go.Bar(
+            x=grp[col_stage], y=grp["cnt"],
+            marker_color=STAGE_COLORS[:len(grp)],
+            text=grp["cnt"], textposition="outside", textfont=dict(size=8)
+        ))
+        fig.update_layout(height=195, template=T, margin=dict(t=10,b=5,l=5,r=5))
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Stage + CA Factorisé")
+
+# Factored revenue by size
+with r4c:
+    st.markdown('<div class="chart-title">Factored revenue par taille</div>', unsafe_allow_html=True)
+    if col_size and col_fact and n > 0:
+        grp = fdf.groupby(col_size)[col_fact].sum().reset_index()
+        fig = go.Figure(go.Bar(
+            x=grp[col_size], y=grp[col_fact].round(2),
+            marker_color=SIZE_COLORS[:len(grp)],
+            text=grp[col_fact].apply(fmt), textposition="outside", textfont=dict(size=8)
+        ))
+        fig.update_layout(
+            xaxis=dict(tickfont=dict(size=9)),
+            yaxis=dict(tickfont=dict(size=9)),
+            **dict(height=195, template=T, margin=dict(t=10,b=5,l=5,r=5))
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    elif col_size and n > 0:
+        grp = fdf.groupby(col_size).size().reset_index(name="cnt")
+        fig = go.Figure(go.Bar(
+            x=grp[col_size], y=grp["cnt"],
+            marker_color=SIZE_COLORS[:len(grp)],
+            text=grp["cnt"], textposition="outside", textfont=dict(size=8)
+        ))
+        fig.update_layout(height=195, template=T, margin=dict(t=10,b=5,l=5,r=5))
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CFG)
+    else:
+        st.info("Configurez Taille")
+
+# ── FOOTER ────────────────────────────────────────────────────────────────────
+st.markdown(f"""
+<div style="background:#2B579A;color:#fff;padding:6px 14px;border-radius:4px;
+            margin-top:8px;display:flex;justify-content:space-between;align-items:center">
+  <span style="font-size:11px">{n:,} enregistrements filtrés</span>
+  <span style="font-size:11px">Revenue total : {fmt(total_rev) if col_rev else '—'}
+    &nbsp;|&nbsp; Factorisé : {fmt(total_fact) if col_fact else '—'}
+    &nbsp;|&nbsp; Win rate : {win_rate}%
+  </span>
+  <span style="font-size:11px;opacity:.7">Power BI Dashboard v3.0</span>
+</div>
+""", unsafe_allow_html=True)
