@@ -1,40 +1,35 @@
-# APEX Analytics Platform 🔴
+# 📊 Power BI Dashboard — Streamlit
 
-**World-class data analysis platform — White & Red design**
+Tableau de bord style Power BI en une seule page, avec filtres croisés et graphiques Plotly.
 
-## Run
+## 🚀 Lancement local
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Structure
+## ☁️ Déploiement Streamlit Cloud
 
-```
-apex_analytics/
-├── app.py                  # Main entry point
-├── requirements.txt
-├── pages/
-│   ├── profiling.py        # Overview & auto profiling
-│   ├── univariate.py       # Distributions, outliers, normality
-│   ├── bivariate.py        # Correlations, scatter, ANOVA
-│   ├── kpi.py              # KPI dashboard (gauges, treemaps, funnels)
-│   ├── timeseries.py       # Time series, candlesticks, seasonality
-│   └── export.py           # Reports, data download, cleaning
-└── utils/
-    ├── loader.py
-    ├── profiling.py
-    ├── export.py
-    └── charts.py
-```
+1. Créer repo GitHub public
+2. Pousser ces fichiers
+3. Aller sur share.streamlit.io → New App → sélectionner `app.py` → Deploy
 
-## Features
+## 📂 Utilisation
 
-- 🎨 **White & Red design** — Bebas Neue + DM Sans typography
-- 📊 **50+ chart types** — All powered by Plotly
-- 🔬 **Auto profiling** — Stats, missing values, outliers, insights
-- 🎯 **KPI dashboards** — Gauges, waterfalls, funnels, sunbursts
-- 📅 **Time series** — OHLC candlesticks, seasonality heatmaps, MA
-- 📤 **One-click export** — Markdown reports, Excel, CSV
-- 🧹 **Data cleaning** — Deduplication, imputation, normalization
+1. **Charger votre fichier** Excel/CSV dans la sidebar
+2. **Configurer les colonnes** : associer vos colonnes aux dimensions et mesures
+3. **Filtrer** avec les menus déroulants en haut
+4. Tous les graphiques se mettent à jour automatiquement
+
+## ✅ Colonnes reconnues automatiquement
+
+| Type | Utilisation |
+|------|-------------|
+| Étape / Stage | Barres empilées, win rate |
+| Région / Zone | Graphiques horizontaux, pie |
+| Taille / Segment | Donut, grouped bars |
+| Partenaire | Barres groupées |
+| CA / Revenue | KPIs, trend, agrégations |
+| CA Factorisé | Barres factorisées |
+| Date / Période | Trend temporel |

@@ -3,668 +3,566 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
-from scipy import stats
-import warnings
+import io, warnings
 warnings.filterwarnings("ignore")
 
-st.set_page_config(
-    page_title="Dashboard Auto",
-    page_icon="🔴",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="Torre de Controle", page_icon="🏭",
+                   layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
-:root {
-    --red: #E8002D;
-    --dark: #09090B;
-    --gray-50: #FAFAFA;
-    --gray-100: #F4F4F5;
-    --gray-200: #E4E4E7;
-    --gray-400: #A1A1AA;
-    --gray-600: #52525B;
-    --green: #16A34A;
-    --orange: #EA580C;
-}
-
-*, body { font-family: 'Inter', sans-serif !important; }
-[data-testid="stAppViewContainer"] { background: var(--gray-50) !important; }
-.main .block-container { padding: 1.5rem 2rem 3rem !important; max-width: 1600px !important; }
-
-/* Upload zone */
-.upload-hero {
-    background: white;
-    border: 2px dashed var(--gray-200);
-    border-radius: 16px;
-    padding: 4rem 2rem;
-    text-align: center;
-    margin: 3rem auto;
-    max-width: 600px;
-    transition: border-color 0.2s;
-}
-.upload-hero:hover { border-color: var(--red); }
-
-/* Cards */
-.card {
-    background: white;
-    border: 1px solid var(--gray-200);
-    border-radius: 12px;
-    padding: 1.2rem 1.4rem;
-    margin-bottom: 1rem;
-    height: 100%;
-}
-.card-red { border-top: 3px solid var(--red); }
-.card-green { border-top: 3px solid var(--green); }
-.card-orange { border-top: 3px solid var(--orange); }
-
-.kpi-val {
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--dark);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-}
-.kpi-label {
-    font-size: 0.68rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--gray-400);
-    margin-bottom: 4px;
-}
-.kpi-sub { font-size: 0.72rem; color: var(--gray-400); margin-top: 3px; }
-
-/* Section */
-.sec {
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--gray-400);
-    margin: 2rem 0 1rem;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--gray-200);
-}
-
-/* Insight */
-.insight {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    background: white;
-    border: 1px solid var(--gray-200);
-    border-left: 3px solid var(--red);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin: 6px 0;
-    font-size: 0.82rem;
-    color: var(--gray-600);
-}
-.insight-ok { border-left-color: var(--green); }
-.insight-warn { border-left-color: var(--orange); }
-
-/* Dashboard title */
-.dash-title {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: var(--dark);
-    letter-spacing: -0.02em;
-    margin: 0;
-}
-.dash-title span { color: var(--red); }
-.dash-sub { font-size: 0.8rem; color: var(--gray-400); margin: 4px 0 1.5rem; }
-
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    background: var(--gray-100) !important;
-    border-radius: 8px !important;
-    padding: 3px !important;
-    border: none !important;
-    gap: 2px !important;
-}
-.stTabs [data-baseweb="tab"] {
-    background: transparent !important;
-    color: var(--gray-400) !important;
-    font-size: 0.8rem !important;
-    font-weight: 600 !important;
-    border-radius: 6px !important;
-    padding: 7px 14px !important;
-}
-.stTabs [aria-selected="true"] {
-    background: white !important;
-    color: var(--red) !important;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.08) !important;
-}
-
-[data-testid="stSidebar"] { display: none; }
-[data-testid="collapsedControl"] { display: none; }
-
-hr { border: none !important; border-top: 1px solid var(--gray-200) !important; margin: 1rem 0 !important; }
-
-.stDownloadButton > button {
-    background: var(--dark) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    padding: 8px 16px !important;
-}
-[data-testid="stDataFrame"] {
-    border: 1px solid var(--gray-200) !important;
-    border-radius: 8px !important;
-}
+*,body,[class*="css"]{font-family:'Inter',sans-serif!important}
+[data-testid="stAppViewContainer"]{background:#0f1117!important}
+[data-testid="stHeader"],[data-testid="stToolbar"]{display:none!important}
+[data-testid="stSidebar"]{display:none!important}
+.block-container{padding:12px 16px 20px!important;max-width:100%!important}
+footer,#MainMenu{display:none!important}
+div[data-testid="column"]{padding:0 3px!important}
+[data-testid="stFileUploadDropzone"]{background:#1a1d27!important;border-color:#2a2d3e!important}
+[data-testid="stFileUploadDropzone"] label,[data-testid="stFileUploadDropzone"] p{color:#94a3b8!important}
+.stSelectbox > div > div{background:#1a1d27!important;border-color:#3a3d4e!important;color:#fff!important}
+.stSelectbox label{color:#64748b!important;font-size:10px!important}
+.stSlider label{color:#64748b!important;font-size:10px!important}
+.stSlider [data-testid="stThumbValue"]{color:#0ea5e9!important}
 </style>
 """, unsafe_allow_html=True)
 
+DARK_BG  = "#0f1117"
+CARD_BG  = "#1a1d27"
+BORDER   = "#2a2d3e"
+TEAL     = "#0d9488"
+ORANGE   = "#f59e0b"
+BLUE     = "#3b82f6"
+CORAL    = "#e05a2b"
+TEXT_SEC = "#94a3b8"
+TEXT_DIM = "#64748b"
+CFG      = dict(displayModeBar=False)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
+def fmt(v):
+    if v is None or (isinstance(v, float) and np.isnan(v)): return "—"
+    v = float(v)
+    if abs(v) >= 1e9:  return f"{v/1e9:.1f} Bi"
+    if abs(v) >= 1e6:  return f"{v/1e6:.1f} Mi"
+    if abs(v) >= 1e3:  return f"{v/1e3:.1f} Mil"
+    return f"{v:.2g}"
 
-def fmt(val):
-    if pd.isna(val): return "—"
-    if abs(val) >= 1e9: return f"{val/1e9:.1f}B"
-    if abs(val) >= 1e6: return f"{val/1e6:.1f}M"
-    if abs(val) >= 1e3: return f"{val/1e3:.1f}K"
-    if isinstance(val, float): return f"{val:.2f}"
-    return str(val)
+def card(content, extra_style=""):
+    return f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:12px 14px;{extra_style}">{content}</div>'
 
+def sec(title):
+    return f'<div style="font-size:10px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">{title}</div>'
 
-def chart_layout(fig, height=320):
-    fig.update_layout(
-        template="plotly_white",
-        height=height,
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        font=dict(family="Inter", size=11, color="#52525B"),
-        margin=dict(t=30, b=30, l=40, r=20),
-        hoverlabel=dict(bgcolor="white", bordercolor="#E4E4E7", font_family="Inter", font_size=11),
-        showlegend=False,
-    )
-    fig.update_xaxes(gridcolor="#F4F4F5", linecolor="#E4E4E7", tickfont=dict(size=10))
-    fig.update_yaxes(gridcolor="#F4F4F5", linecolor="#E4E4E7", tickfont=dict(size=10))
+def rank_bars(labels, values, color=CORAL, max_n=10):
+    labels  = [str(l)[:22] for l in labels[:max_n]]
+    values  = [float(v)    for v in values[:max_n]]
+    mx = max(values) if values else 1
+    rows = ""
+    for l, v in zip(labels, values):
+        pct = 100 * v / mx if mx else 0
+        rows += f"""<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+          <div style="font-size:10px;color:{TEXT_SEC};width:120px;text-align:right;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{l}">{l}</div>
+          <div style="flex:1;background:{BORDER};border-radius:3px;height:13px;overflow:hidden">
+            <div style="width:{pct:.0f}%;height:13px;border-radius:3px;background:{color}"></div></div>
+          <div style="font-size:9px;color:#fff;font-weight:600;min-width:38px">{fmt(v)}</div>
+        </div>"""
+    return rows
+
+def gauge_fig(value, color, max_val=100):
+    try: val = float(value)
+    except: val = 0
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=round(val, 1),
+        number=dict(suffix="%" if max_val == 100 else "",
+                    font=dict(size=26, color="#fff", family="Inter")),
+        gauge=dict(
+            axis=dict(range=[0, max_val], tickfont=dict(color=TEXT_DIM, size=7),
+                      tickwidth=0, nticks=3),
+            bar=dict(color=color, thickness=0.72),
+            bgcolor=BORDER, borderwidth=0,
+            steps=[dict(range=[0, max_val], color=BORDER)],
+        )
+    ))
+    fig.update_layout(height=150, margin=dict(t=8, b=4, l=18, r=18),
+                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                      font=dict(color="#fff"))
     return fig
 
+def spark(series, color):
+    s = pd.Series(series).dropna().reset_index(drop=True)
+    if len(s) < 2: return None
+    try:
+        r, g, b = px.colors.hex_to_rgb(color)
+        fill_c  = f"rgba({r},{g},{b},0.12)"
+    except:
+        fill_c  = "rgba(13,148,136,0.12)"
+    fig = go.Figure(go.Scatter(
+        y=s, mode="lines", fill="tozeroy",
+        line=dict(color=color, width=1.5), fillcolor=fill_c, showlegend=False
+    ))
+    fig.update_layout(
+        height=52, margin=dict(t=2, b=2, l=2, r=2),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False), yaxis=dict(visible=False)
+    )
+    return fig
 
-RED = "#E8002D"
-DARK = "#09090B"
-GREEN = "#16A34A"
-ORANGE = "#EA580C"
-PALETTE = [RED, "#374151", "#6B7280", "#9CA3AF", "#D1D5DB"]
+def load_file(f):
+    name = f.name.lower()
+    try:
+        if name.endswith((".xlsx", ".xls")):
+            xl  = pd.ExcelFile(f)
+            df  = pd.read_excel(f, sheet_name=xl.sheet_names[0])
+            return df, xl.sheet_names, None
+        elif name.endswith(".csv"):
+            raw = f.read(4096).decode("utf-8", "replace"); f.seek(0)
+            sep = ";" if raw.count(";") > raw.count(",") else ","
+            return pd.read_csv(f, sep=sep, on_bad_lines="skip"), ["CSV"], None
+        elif name.endswith(".tsv"):
+            return pd.read_csv(f, sep="\t", on_bad_lines="skip"), ["TSV"], None
+        return None, [], "Format non supporté (.xlsx .xls .csv .tsv)"
+    except Exception as e:
+        return None, [], str(e)
 
+def classify(df):
+    num, cat, dates = [], [], []
+    for c in df.columns:
+        s = df[c]
+        if pd.api.types.is_numeric_dtype(s):
+            num.append(c)
+        elif pd.api.types.is_datetime64_any_dtype(s):
+            dates.append(c)
+        else:
+            try:
+                p = pd.to_datetime(s, infer_datetime_format=True, errors="coerce")
+                if p.notna().mean() > 0.55:
+                    dates.append(c); continue
+            except: pass
+            cat.append(c)
+    return num, cat, dates
 
-def auto_detect(df):
-    """Auto-detect column roles from data."""
-    num_cols = df.select_dtypes(include=np.number).columns.tolist()
-    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
-
-    # Detect date columns
-    date_cols = list(df.select_dtypes(include=["datetime"]).columns)
-    for c in cat_cols:
-        try:
-            parsed = pd.to_datetime(df[c], infer_datetime_format=True, errors="coerce")
-            if parsed.notna().sum() / len(df) > 0.7:
-                date_cols.append(c)
-        except: pass
-
-    # Best numeric = highest variance (most interesting)
-    best_num = None
-    if num_cols:
-        cvs = {c: df[c].std() / abs(df[c].mean()) if df[c].mean() != 0 else 0 for c in num_cols}
-        best_num = max(cvs, key=cvs.get)
-
-    # Best categorical = medium cardinality (most useful for grouping)
-    best_cat = None
-    if cat_cols:
-        scored = {}
-        for c in cat_cols:
-            if c in date_cols: continue
-            n = df[c].nunique()
-            if 2 <= n <= 30:
-                scored[c] = n
-        if scored:
-            best_cat = sorted(scored, key=lambda c: abs(scored[c] - 8))[0]
-        elif cat_cols:
-            best_cat = [c for c in cat_cols if c not in date_cols][0] if [c for c in cat_cols if c not in date_cols] else None
-
-    # Best date
-    best_date = date_cols[0] if date_cols else None
-
-    return {
-        "num_cols": num_cols,
-        "cat_cols": [c for c in cat_cols if c not in date_cols],
-        "date_cols": date_cols,
-        "best_num": best_num,
-        "best_cat": best_cat,
-        "best_date": best_date,
-    }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# UPLOAD SCREEN
-# ─────────────────────────────────────────────────────────────────────────────
-
-st.markdown("""
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
-    <div>
-        <div class="dash-title">Dashboard <span>Auto</span></div>
-        <div class="dash-sub">Chargez n'importe quelle base de données → tableau de bord instantané</div>
-    </div>
+# ── HEADER ────────────────────────────────────────────────────────────────────
+st.markdown(f"""
+<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;
+     padding:10px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+  <div>
+    <div style="font-size:18px;font-weight:800;color:#fff">🏭 Torre de Controle</div>
+    <div style="font-size:11px;color:{TEXT_DIM};margin-top:1px">Indicadores de Desempenho · Dashboard automatique</div>
+  </div>
+  <div style="font-size:11px;color:{TEXT_DIM}">Upload Excel / CSV → analyse instantanée · zéro configuration</div>
 </div>
 """, unsafe_allow_html=True)
 
-uploaded = st.file_uploader(
-    "📂 Charger votre fichier (Excel, CSV, TSV)",
-    type=["xlsx", "xls", "csv", "tsv"],
-    label_visibility="collapsed"
-)
+# ── UPLOAD ────────────────────────────────────────────────────────────────────
+uploaded = st.file_uploader("", type=["xlsx", "xls", "csv", "tsv"],
+                             label_visibility="collapsed")
 
 if not uploaded:
-    st.markdown("""
-    <div class="upload-hero">
-        <div style="font-size:3rem;margin-bottom:1rem">📊</div>
-        <div style="font-size:1.3rem;font-weight:700;color:#09090B;margin-bottom:8px">
-            Déposez votre fichier ici
-        </div>
-        <div style="font-size:0.85rem;color:#A1A1AA;line-height:1.6">
-            Excel (.xlsx / .xls) · CSV · TSV<br>
-            Le tableau de bord se génère <strong>automatiquement</strong>
-        </div>
+    st.markdown(f"""
+    <div style="background:{CARD_BG};border:2px dashed {BORDER};border-radius:14px;
+         padding:70px 40px;text-align:center;margin:50px auto;max-width:540px">
+      <div style="font-size:52px;margin-bottom:14px">📊</div>
+      <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px">
+        Glissez votre fichier ici</div>
+      <div style="font-size:13px;color:{TEXT_DIM}">
+        Excel (.xlsx .xls) · CSV · TSV<br>
+        N'importe quelle structure — analyse 100% automatique</div>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
 
+# ── LOAD DATA ─────────────────────────────────────────────────────────────────
+df_raw, sheets, err = load_file(uploaded)
+if err or df_raw is None:
+    st.error(f"❌ Erreur : {err}"); st.stop()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# LOAD DATA
-# ─────────────────────────────────────────────────────────────────────────────
+df_raw.columns  = [str(c).strip() for c in df_raw.columns]
+df_raw          = df_raw.dropna(how="all").reset_index(drop=True)
 
-@st.cache_data
-def load(file_bytes, name):
+# Sheet picker
+if len(sheets) > 1:
+    s1, s2 = st.columns([1, 9])
+    chosen = s1.selectbox("Feuille", sheets, key="sht")
     try:
-        n = name.lower()
-        if n.endswith((".xlsx", ".xls")):
-            xls = pd.ExcelFile(file_bytes)
-            df = pd.read_excel(file_bytes, sheet_name=xls.sheet_names[0])
-        elif n.endswith(".csv"):
-            import io
-            raw = file_bytes.read() if hasattr(file_bytes, 'read') else file_bytes
-            sample = raw[:2048].decode("utf-8", errors="replace")
-            sep = ";" if sample.count(";") > sample.count(",") else ","
-            df = pd.read_csv(io.BytesIO(raw) if isinstance(raw, bytes) else file_bytes, sep=sep, on_bad_lines="skip")
-        elif n.endswith(".tsv"):
-            df = pd.read_csv(file_bytes, sep="\t", on_bad_lines="skip")
-        else:
-            return None
-        df.columns = [str(c).strip() for c in df.columns]
-        df = df.dropna(how="all").reset_index(drop=True)
-        return df
-    except Exception as e:
-        st.error(f"Erreur de lecture : {e}")
-        return None
+        df_raw = pd.read_excel(uploaded, sheet_name=chosen)
+        df_raw.columns = [str(c).strip() for c in df_raw.columns]
+        df_raw = df_raw.dropna(how="all").reset_index(drop=True)
+    except: pass
 
+num_cols, cat_cols, date_cols = classify(df_raw)
 
-file_bytes = uploaded.read()
-uploaded.seek(0)
+# Best cols
+def nth(lst, n, fallback=None):
+    return lst[n] if len(lst) > n else fallback
 
-df = load(uploaded, uploaded.name)
+best_num  = nth(num_cols, 0)
+best_num2 = nth(num_cols, 1, best_num)
+best_num3 = nth(num_cols, 2, best_num)
+best_cat  = nth(cat_cols, 0)
+best_cat2 = nth(cat_cols, 1, best_cat)
+best_date = nth(date_cols, 0)
 
-if df is None or df.empty:
-    st.error("❌ Impossible de lire ce fichier.")
-    st.stop()
+# ── FILTER BAR ────────────────────────────────────────────────────────────────
+fc = st.columns([1.1, 1.1, 1.1, 1.3, 0.45])
 
-meta = auto_detect(df)
-num_cols = meta["num_cols"]
-cat_cols = meta["cat_cols"]
-date_cols = meta["date_cols"]
-best_num = meta["best_num"]
-best_cat = meta["best_cat"]
-best_date = meta["best_date"]
+def safe_uniq(col, max_n=50):
+    if col is None: return []
+    return sorted(df_raw[col].dropna().astype(str).unique().tolist())[:max_n]
 
-n_rows, n_cols = df.shape
-missing_pct = round(100 * df.isnull().sum().sum() / (n_rows * n_cols), 1)
-duplicates = int(df.duplicated().sum())
+fv1 = fc[0].selectbox(
+    best_cat or "—",
+    ["Tous"] + safe_uniq(best_cat), key="f1"
+) if best_cat else None
 
+fv2 = fc[1].selectbox(
+    best_cat2 if best_cat2 != best_cat else (nth(cat_cols, 2) or "—"),
+    ["Tous"] + safe_uniq(best_cat2 if best_cat2 != best_cat else nth(cat_cols, 2)), key="f2"
+) if (best_cat2 and best_cat2 != best_cat) or nth(cat_cols, 2) else None
+_cat2_col = best_cat2 if best_cat2 != best_cat else nth(cat_cols, 2)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION 1 — EN-TÊTE & KPIs
-# ─────────────────────────────────────────────────────────────────────────────
+fv3 = fc[2].selectbox(
+    best_date or "—",
+    ["Toutes"] + safe_uniq(best_date, 80), key="f3"
+) if best_date else None
 
-fname = uploaded.name
-st.markdown(f"""
-<div style="background:white;border:1px solid #E4E4E7;border-radius:12px;
-            padding:1.2rem 1.6rem;margin-bottom:1.5rem;
-            display:flex;justify-content:space-between;align-items:center">
-    <div>
-        <div style="font-weight:700;font-size:1rem;color:#09090B">📁 {fname}</div>
-        <div style="font-size:0.75rem;color:#A1A1AA;margin-top:2px">
-            {n_rows:,} lignes · {n_cols} colonnes · {len(num_cols)} numériques · {len(cat_cols)} catégorielles
-            {'· ' + str(len(date_cols)) + ' dates' if date_cols else ''}
-        </div>
-    </div>
-    <div style="font-size:0.72rem;color:#A1A1AA">Dashboard généré automatiquement</div>
+if best_num:
+    _mn = float(df_raw[best_num].min())
+    _mx = float(df_raw[best_num].max())
+    fv4 = fc[3].slider(best_num, _mn, _mx, (_mn, _mx), key="f4") if _mn < _mx else (_mn, _mx)
+else:
+    fv4 = None
+
+if fc[4].button("↺", use_container_width=True, help="Réinitialiser les filtres"):
+    for k in ["f1","f2","f3","f4","sht","gran"]: st.session_state.pop(k, None)
+    st.rerun()
+
+# Apply
+df = df_raw.copy()
+if best_cat and fv1 and fv1 != "Tous":       df = df[df[best_cat].astype(str) == fv1]
+if _cat2_col and fv2 and fv2 != "Tous":      df = df[df[_cat2_col].astype(str) == fv2]
+if best_date and fv3 and fv3 != "Toutes":    df = df[df[best_date].astype(str) == fv3]
+if best_num and fv4:
+    df = df[(df[best_num] >= fv4[0]) & (df[best_num] <= fv4[1])]
+
+n = len(df)
+if n == 0:
+    st.warning("⚠️ Aucune donnée après filtrage. Réinitialisez les filtres."); st.stop()
+
+# ── COMPUTED METRICS ─────────────────────────────────────────────────────────
+missing_pct  = round(100 * df.isnull().sum().sum() / max(n * len(df.columns), 1), 1)
+completeness = round(100 - missing_pct, 1)
+dupes        = int(df.duplicated().sum())
+
+def norm_pct(col):
+    if col is None: return 50.0
+    s = df[col].dropna()
+    if len(s) == 0: return 0.0
+    mn, mx = df_raw[col].min(), df_raw[col].max()
+    if mx == mn: return 50.0
+    return round(100 * (s.mean() - mn) / (mx - mn), 1)
+
+r1v = norm_pct(best_num)
+r2v = norm_pct(best_num2) if best_num2 != best_num else completeness
+r3v = norm_pct(best_num3) if best_num3 not in (best_num, best_num2) else completeness
+oee = round((r1v / 100) * (r2v / 100) * (r3v / 100) * 100, 2)
+
+total1 = df[best_num].sum()  if best_num  else n
+total2 = df[best_num2].sum() if best_num2 else 0
+total3 = df[best_num3].sum() if best_num3 not in (best_num, best_num2) else 0
+
+# ── ROW A — TOP KPIS ─────────────────────────────────────────────────────────
+ra = st.columns([1.3, 1, 1, 1, 2.2])
+
+ra[0].markdown(card(f"""
+  <div style="font-size:10px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.5px">
+    {uploaded.name[:26]}</div>
+  <div style="margin-top:8px;font-size:11px;color:{TEXT_SEC}">
+    <span style="font-size:22px;font-weight:800;color:#fff">{n:,}</span> lignes &nbsp;·&nbsp;
+    <span style="color:#fff;font-weight:700">{len(df.columns)}</span> cols
+  </div>
+  <div style="margin-top:6px;font-size:10px;color:{TEXT_DIM}">
+    {len(num_cols)} num &nbsp;·&nbsp; {len(cat_cols)} cat &nbsp;·&nbsp; {len(date_cols)} dates &nbsp;·&nbsp;
+    <span style="color:{'#0d9488' if completeness>=95 else '#f59e0b'}">{completeness}% complet</span>
+    {"&nbsp;·&nbsp;<span style='color:#ef4444'>⚠ "+str(dupes)+" dup</span>" if dupes>0 else ""}
+  </div>
+"""), unsafe_allow_html=True)
+
+for i, (col_n, val, lbl) in enumerate([
+    (best_num,  total1, "Total"),
+    (best_num2 if best_num2 != best_num else None, total2 if best_num2 != best_num else df[best_num].mean() if best_num else 0,
+     "Somme" if best_num2 != best_num else "Moyenne"),
+    (best_num3 if best_num3 not in (best_num, best_num2) else None,
+     total3 if best_num3 not in (best_num, best_num2) else df[best_num].median() if best_num else 0,
+     "Somme" if best_num3 not in (best_num, best_num2) else "Médiane"),
+]):
+    nm = col_n or best_num or "—"
+    ra[i+1].markdown(card(f"""
+      <div style="font-size:10px;color:{TEXT_DIM}">{(nm or '')[:20]}</div>
+      <div style="font-size:26px;font-weight:800;color:#fff;margin-top:4px">{fmt(val)}</div>
+      <div style="font-size:10px;color:{TEXT_DIM};margin-top:4px">{lbl}</div>
+    """), unsafe_allow_html=True)
+
+# Teal KPI banner
+ra[4].markdown(f"""
+<div style="background:#0e7490;border-radius:10px;padding:12px 18px;
+     display:flex;align-items:center;gap:0;height:100%">
+  <div style="flex:1;text-align:center;padding:0 10px">
+    <div style="font-size:24px;font-weight:800;color:#fff">{fmt(total1)}</div>
+    <div style="font-size:10px;color:rgba(255,255,255,.75);margin-top:3px">
+      {(best_num or 'Total')[:20]}</div>
+  </div>
+  <div style="width:1px;height:44px;background:rgba(255,255,255,.2)"></div>
+  <div style="flex:1;text-align:center;padding:0 10px">
+    <div style="font-size:24px;font-weight:800;color:#fff">{fmt(total2 if best_num2 and best_num2!=best_num else (df[best_num].mean() if best_num else 0))}</div>
+    <div style="font-size:10px;color:rgba(255,255,255,.75);margin-top:3px">
+      {(best_num2 if best_num2 and best_num2!=best_num else ('Moy. '+str(best_num or ''))[:20])[:20]}</div>
+  </div>
+  <div style="width:1px;height:44px;background:rgba(255,255,255,.2)"></div>
+  <div style="flex:1;text-align:center;padding:0 10px">
+    <div style="font-size:24px;font-weight:800;color:#fed7aa">{df[best_cat].nunique() if best_cat else len(cat_cols)}</div>
+    <div style="font-size:10px;color:rgba(255,255,255,.75);margin-top:3px">
+      {('Uniques '+str(best_cat or 'Cat'))[:20]}</div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
-# KPI strip — top numériques
-if num_cols:
-    cols_to_show = num_cols[:5]
-    kpi_cols = st.columns(len(cols_to_show) + 1)
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    for i, col in enumerate(cols_to_show):
-        s = df[col].dropna()
-        total = s.sum()
-        mean = s.mean()
-        with kpi_cols[i]:
-            st.markdown(f"""
-            <div class="card card-red">
-                <div class="kpi-label">{col[:20]}</div>
-                <div class="kpi-val">{fmt(total)}</div>
-                <div class="kpi-sub">Moy. {fmt(mean)} · {len(s):,} valeurs</div>
-            </div>""", unsafe_allow_html=True)
+# ── ROW B — OEE + 3 GAUGES + RANKING ─────────────────────────────────────────
+rb = st.columns([1.2, 1.8, 2.2])
 
-    # Qualité données
-    health = max(0, 100 - missing_pct * 2 - (duplicates / n_rows * 20 if n_rows > 0 else 0))
-    health_color = "green" if health >= 80 else ("orange" if health >= 50 else "red")
-    with kpi_cols[-1]:
-        st.markdown(f"""
-        <div class="card card-{'green' if health >= 80 else 'orange' if health >= 50 else 'red'}">
-            <div class="kpi-label">Qualité données</div>
-            <div class="kpi-val" style="color:{'#16A34A' if health >= 80 else '#EA580C' if health >= 50 else '#E8002D'}">{round(health)}/100</div>
-            <div class="kpi-sub">{missing_pct}% manquant · {duplicates} doublons</div>
-        </div>""", unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION 2 — GRAPHIQUES AUTOMATIQUES
-# ─────────────────────────────────────────────────────────────────────────────
-
-st.markdown('<div class="sec">Visualisations automatiques</div>', unsafe_allow_html=True)
-
-# Row 1 : distribution principale + top catégories
-col_a, col_b = st.columns(2)
-
-with col_a:
+# OEE Gauge
+with rb[0]:
+    st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:10px 12px">', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:10px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.6px">Score global composite</div>', unsafe_allow_html=True)
+    st.plotly_chart(gauge_fig(oee, TEAL), use_container_width=True, config=CFG)
     if best_num:
-        s = df[best_num].dropna()
-        fig = go.Figure()
-        fig.add_trace(go.Histogram(
-            x=s, nbinsx=30,
-            marker_color=RED, marker_line_color="white",
-            marker_line_width=0.5, opacity=0.85,
-        ))
-        # médiane
-        fig.add_vline(x=s.median(), line_dash="dash", line_color=DARK, line_width=1.5,
-                      annotation_text=f"Médiane {fmt(s.median())}",
-                      annotation_font=dict(size=10))
-        chart_layout(fig, 300)
-        fig.update_layout(title=dict(text=f"Distribution — {best_num}", font=dict(size=12, color=DARK)))
-        st.plotly_chart(fig, use_container_width=True)
-    elif cat_cols:
-        vc = df[cat_cols[0]].value_counts().head(10)
-        fig = go.Figure(go.Bar(
-            x=vc.index.astype(str), y=vc.values,
-            marker_color=[RED] + [PALETTE[2]] * (len(vc)-1),
-            marker_line_width=0
-        ))
-        chart_layout(fig, 300)
-        fig.update_layout(title=dict(text=f"Fréquences — {cat_cols[0]}", font=dict(size=12)))
-        st.plotly_chart(fig, use_container_width=True)
+        sp = spark(df[best_num].reset_index(drop=True), TEAL)
+        if sp: st.plotly_chart(sp, use_container_width=True, config=CFG)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-with col_b:
-    if best_cat:
-        vc = df[best_cat].value_counts().head(10)
-        fig = go.Figure(go.Bar(
-            y=vc.index.astype(str), x=vc.values,
-            orientation="h",
-            marker_color=[RED] + ["#E4E4E7"] * (len(vc)-1),
-            marker_line_width=0,
-            text=[f"{v:,}" for v in vc.values],
-            textposition="outside",
-            textfont=dict(size=10)
-        ))
-        chart_layout(fig, 300)
-        fig.update_layout(
-            title=dict(text=f"Top catégories — {best_cat}", font=dict(size=12)),
-            xaxis=dict(visible=False)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    elif len(num_cols) >= 2:
-        fig = px.scatter(
-            df.sample(min(500, len(df))),
-            x=num_cols[0], y=num_cols[1],
-            color_discrete_sequence=[RED], opacity=0.6
-        )
-        chart_layout(fig, 300)
-        fig.update_layout(title=dict(text=f"{num_cols[0]} vs {num_cols[1]}", font=dict(size=12)))
-        st.plotly_chart(fig, use_container_width=True)
+# 3 mini gauges
+with rb[1]:
+    gauge_defs = [
+        (best_num,  r1v, ORANGE, "⏱"),
+        (best_num2 if best_num2 != best_num else "Complétude", r2v, BLUE,   "📈"),
+        (best_num3 if best_num3 not in (best_num, best_num2) else "Qualité", r3v, CORAL, "👍"),
+    ]
+    src_num = [best_num,
+               best_num2 if best_num2 != best_num else best_num,
+               best_num3 if best_num3 not in (best_num, best_num2) else best_num]
 
-# Row 2 : série temporelle OU corrélations + donut
-col_c, col_d = st.columns([3, 2])
+    for (lbl, rate, col, icon), src in zip(gauge_defs, src_num):
+        gc1, gc2 = st.columns([1, 1])
+        with gc1:
+            st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:8px;padding:6px 8px">'
+                        f'<div style="font-size:10px;color:#fff;font-weight:600">{str(lbl)[:18]}</div>', unsafe_allow_html=True)
+            st.plotly_chart(gauge_fig(rate, col), use_container_width=True, config=CFG)
+            st.markdown("</div>", unsafe_allow_html=True)
+        with gc2:
+            if src and best_date:
+                try:
+                    ts = df.copy()
+                    ts["_d"] = pd.to_datetime(ts[best_date], infer_datetime_format=True, errors="coerce")
+                    ts2 = ts.dropna(subset=["_d"]).sort_values("_d").groupby("_d")[src].sum()
+                    sp = spark(ts2, col)
+                except:
+                    sp = spark(df[src].reset_index(drop=True), col) if src else None
+            elif src:
+                sp = spark(df[src].reset_index(drop=True), col)
+            else:
+                sp = None
 
-with col_c:
-    if best_date and best_num:
-        # Time series
-        try:
-            ts = df[[best_date, best_num]].copy()
-            ts[best_date] = pd.to_datetime(ts[best_date], errors="coerce")
-            ts = ts.dropna().sort_values(best_date)
-            # Aggregate by month if many points
-            if len(ts) > 200:
-                ts = ts.set_index(best_date)[best_num].resample("ME").sum().reset_index()
-                ts.columns = [best_date, best_num]
+            st.markdown(f"<div style='margin-top:32px'></div>", unsafe_allow_html=True)
+            if sp: st.plotly_chart(sp, use_container_width=True, config=CFG)
+            st.markdown(f'<div style="background:{col};border-radius:7px;width:32px;height:32px;'
+                        f'display:flex;align-items:center;justify-content:center;font-size:14px;margin:4px auto">{icon}</div>',
+                        unsafe_allow_html=True)
 
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=ts[best_date], y=ts[best_num],
-                mode="lines+markers",
-                line=dict(color=RED, width=2),
-                marker=dict(size=4, color=RED),
-                fill="tozeroy", fillcolor="rgba(232,0,45,0.06)"
-            ))
-            chart_layout(fig, 280)
-            fig.update_layout(title=dict(text=f"Évolution — {best_num}", font=dict(size=12)))
-            st.plotly_chart(fig, use_container_width=True)
-        except:
-            pass
-    elif len(num_cols) >= 3:
-        # Correlation heatmap
-        corr = df[num_cols[:8]].corr().round(2)
-        fig = go.Figure(go.Heatmap(
-            z=corr.values,
-            x=corr.columns.tolist(), y=corr.index.tolist(),
-            colorscale=[[0, "#1E40AF"], [0.5, "white"], [1, RED]],
-            zmid=0, zmin=-1, zmax=1,
-            text=corr.values, texttemplate="%{text:.2f}",
-            textfont={"size": 9},
-            colorbar=dict(thickness=8, len=0.8)
-        ))
-        chart_layout(fig, 280)
-        fig.update_layout(title=dict(text="Corrélations", font=dict(size=12)))
-        st.plotly_chart(fig, use_container_width=True)
-
-with col_d:
+# Ranking 1
+with rb[2]:
+    st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:12px 14px;height:100%">', unsafe_allow_html=True)
     if best_cat and best_num:
-        # Aggregation by best category
-        top_cats = df[best_cat].value_counts().head(7).index
-        agg = df[df[best_cat].isin(top_cats)].groupby(best_cat)[best_num].sum().sort_values(ascending=False).reset_index()
-        n = len(agg)
-        shades = [f"rgba(232,0,45,{max(0.15, 1 - i*0.7/max(n-1,1)):.2f})" for i in range(n)]
-
-        fig = go.Figure(go.Pie(
-            values=agg[best_num],
-            labels=agg[best_cat].astype(str),
-            hole=0.55,
-            marker=dict(colors=shades, line=dict(color="white", width=2)),
-            textfont=dict(family="Inter", size=10),
-        ))
-        total = agg[best_num].sum()
-        fig.add_annotation(
-            text=f"<b>{fmt(total)}</b>",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=18, family="Inter", color=DARK)
-        )
-        chart_layout(fig, 280)
-        fig.update_layout(
-            title=dict(text=f"{best_num} par {best_cat}", font=dict(size=12)),
-            showlegend=True,
-            legend=dict(font=dict(size=9), x=1, y=0.5)
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        grp = df.groupby(best_cat)[best_num].sum().sort_values(ascending=False).head(10)
+        title = f"Ranking <b style='color:#fff'>{best_cat}</b> — {best_num}"
+        bars  = rank_bars(grp.index.tolist(), grp.values.tolist(), CORAL)
     elif best_cat:
-        vc = df[best_cat].value_counts().head(6)
-        n = len(vc)
-        shades = [f"rgba(232,0,45,{max(0.15, 1 - i*0.7/max(n-1,1)):.2f})" for i in range(n)]
-        fig = go.Figure(go.Pie(
-            values=vc.values, labels=vc.index.astype(str), hole=0.5,
-            marker=dict(colors=shades, line=dict(color="white", width=2)),
-            textfont=dict(size=10)
+        grp  = df[best_cat].value_counts().head(10)
+        title = f"Ranking <b style='color:#fff'>{best_cat}</b>"
+        bars  = rank_bars(grp.index.tolist(), grp.values.tolist(), CORAL)
+    else:
+        title, bars = "Ranking", ""
+    st.markdown(f'<div style="font-size:11px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">{title}</div>{bars}', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+# ── ROW C — TIME SERIES + RANKING 2 ──────────────────────────────────────────
+rc = st.columns([2.8, 1.2])
+
+with rc[0]:
+    st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:12px 14px">', unsafe_allow_html=True)
+    h1, h2 = st.columns([3, 1])
+    h1.markdown(f'<div style="font-size:11px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.5px">'
+                f'<b style="color:#fff">{best_num or "Valeur"}</b> — évolution & distribution</div>', unsafe_allow_html=True)
+    gran = h2.selectbox("", ["Mois","Semaine","Jour","Trimestre","Année"],
+                         index=0, key="gran", label_visibility="collapsed")
+
+    GRAN = {"Jour":"D","Semaine":"W","Mois":"ME","Trimestre":"QE","Année":"YE"}
+
+    fig_ts = go.Figure()
+    if best_date and best_num:
+        try:
+            ts = df.copy()
+            ts["_d"] = pd.to_datetime(ts[best_date], infer_datetime_format=True, errors="coerce")
+            ts_c = ts.dropna(subset=["_d"]).sort_values("_d")
+            PAL  = [TEAL, ORANGE, BLUE, CORAL, "#a855f7", "#ec4899", "#84cc16", "#14b8a6"]
+            cats = df[best_cat].dropna().unique().tolist() if best_cat and df[best_cat].nunique() <= 8 else []
+
+            if cats:
+                for i, cv in enumerate(cats[:8]):
+                    sub = ts_c[ts_c[best_cat] == cv]
+                    agg = sub.set_index("_d")[best_num].resample(GRAN[gran]).sum().reset_index()
+                    fig_ts.add_trace(go.Bar(x=agg["_d"], y=agg[best_num],
+                                            name=str(cv)[:16], marker_color=PAL[i % len(PAL)], opacity=.85))
+                fig_ts.update_layout(barmode="stack")
+            else:
+                agg = ts_c.set_index("_d")[best_num].resample(GRAN[gran]).sum().reset_index()
+                fig_ts.add_trace(go.Bar(x=agg["_d"], y=agg[best_num],
+                                        marker_color=TEAL, name=best_num, opacity=.85))
+                fig_ts.add_trace(go.Scatter(x=agg["_d"], y=agg[best_num],
+                                            mode="lines", line=dict(color="#fff", width=1.5),
+                                            showlegend=False))
+        except: pass
+    elif best_num:
+        fig_ts.add_trace(go.Histogram(x=df[best_num].dropna(), nbinsx=35,
+                                       marker_color=TEAL, opacity=.85, name=best_num))
+
+    fig_ts.update_layout(
+        height=230, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=4, b=4, l=4, r=4), font=dict(color=TEXT_SEC, size=9),
+        xaxis=dict(gridcolor=BORDER, showgrid=True, tickfont=dict(color=TEXT_DIM, size=8), tickangle=-30),
+        yaxis=dict(gridcolor=BORDER, showgrid=True, tickfont=dict(color=TEXT_DIM, size=9)),
+        legend=dict(font=dict(size=8, color=TEXT_SEC), bgcolor="rgba(0,0,0,0)",
+                    orientation="h", y=-0.18),
+        bargap=0.12
+    )
+    st.plotly_chart(fig_ts, use_container_width=True, config=CFG)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with rc[1]:
+    st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:12px 14px;height:100%">', unsafe_allow_html=True)
+    cat2_col = _cat2_col if _cat2_col and _cat2_col != best_cat else best_cat
+    if cat2_col:
+        if best_num:
+            grp2 = df.groupby(cat2_col)[best_num].count().sort_values(ascending=False).head(8)
+        else:
+            grp2 = df[cat2_col].value_counts().head(8)
+        t2   = f"Occurrences <b style='color:#fff'>{cat2_col}</b>"
+        b2   = rank_bars(grp2.index.tolist(), grp2.values.tolist(), ORANGE)
+    else:
+        t2, b2 = "Ranking", ""
+    st.markdown(f'<div style="font-size:11px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">{t2}</div>{b2}',
+                unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+# ── ROW D — CORRELATION + BOXPLOTS + PIE ─────────────────────────────────────
+rd = st.columns([1.5, 1.5, 1])
+
+with rd[0]:
+    st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:12px 14px">', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:10px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Matrice de corrélation</div>', unsafe_allow_html=True)
+    if len(num_cols) >= 2:
+        corr = df[num_cols[:8]].corr().round(2)
+        fig_cr = go.Figure(go.Heatmap(
+            z=corr.values, x=corr.columns.tolist(), y=corr.index.tolist(),
+            colorscale=[[0,"#1e3a5f"],[0.5,CARD_BG],[1,TEAL]],
+            zmid=0, zmin=-1, zmax=1,
+            text=corr.values, texttemplate="%{text}", textfont=dict(size=8, color="#fff"),
+            colorbar=dict(tickfont=dict(color=TEXT_DIM, size=7), len=0.8, thickness=10)
         ))
-        chart_layout(fig, 280)
-        fig.update_layout(title=dict(text=f"Répartition — {best_cat}", font=dict(size=12)), showlegend=True)
-        st.plotly_chart(fig, use_container_width=True)
+        fig_cr.update_layout(
+            height=210, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(t=4, b=4, l=4, r=4),
+            xaxis=dict(tickfont=dict(color=TEXT_DIM, size=8), tickangle=-30),
+            yaxis=dict(tickfont=dict(color=TEXT_DIM, size=8))
+        )
+        st.plotly_chart(fig_cr, use_container_width=True, config=CFG)
+    else:
+        st.info("2+ colonnes numériques requises pour la corrélation.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# Row 3 : boxplots multi-colonnes si disponible
-if len(num_cols) >= 2 and best_cat:
-    st.markdown('<div class="sec">Comparaison par groupe</div>', unsafe_allow_html=True)
-    top_cats = df[best_cat].value_counts().head(8).index
-    filtered = df[df[best_cat].isin(top_cats)]
+with rd[1]:
+    st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:12px 14px">', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:10px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Distributions (Boxplots)</div>', unsafe_allow_html=True)
+    if num_cols:
+        PAL_B = [ORANGE, TEAL, BLUE, CORAL]
+        fig_bx = go.Figure()
+        for i, c in enumerate(num_cols[:4]):
+            try:
+                r, g, b = px.colors.hex_to_rgb(PAL_B[i % 4])
+                fill_c  = f"rgba({r},{g},{b},0.2)"
+            except:
+                fill_c  = "rgba(13,148,136,0.2)"
+            fig_bx.add_trace(go.Box(
+                y=df[c].dropna(), name=c[:14], boxpoints=False,
+                marker_color=PAL_B[i % 4],
+                line=dict(color=PAL_B[i % 4], width=1.5),
+                fillcolor=fill_c
+            ))
+        fig_bx.update_layout(
+            height=210, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(t=4, b=4, l=4, r=4), font=dict(color=TEXT_SEC, size=9),
+            xaxis=dict(tickfont=dict(color=TEXT_DIM, size=8)),
+            yaxis=dict(gridcolor=BORDER, tickfont=dict(color=TEXT_DIM, size=8)),
+            legend=dict(font=dict(size=8, color=TEXT_SEC), bgcolor="rgba(0,0,0,0)",
+                        orientation="h", y=-0.2)
+        )
+        st.plotly_chart(fig_bx, use_container_width=True, config=CFG)
+    else:
+        st.info("Aucune colonne numérique.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    show_cols = num_cols[:3]
-    box_cols = st.columns(len(show_cols))
-    for i, col in enumerate(show_cols):
-        with box_cols[i]:
-            fig = px.box(
-                filtered, x=best_cat, y=col,
-                color=best_cat,
-                color_discrete_sequence=[RED, "#374151", "#6B7280", "#9CA3AF", "#D1D5DB", "#E5E7EB", "#F3F4F6", "#F9FAFB"],
-                points=False
-            )
-            chart_layout(fig, 260)
-            fig.update_layout(
-                title=dict(text=col, font=dict(size=11)),
-                xaxis=dict(tickangle=-30, tickfont=dict(size=9)),
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
+with rd[2]:
+    st.markdown(f'<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:12px 14px">', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:10px;color:{TEXT_DIM};font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Répartition</div>', unsafe_allow_html=True)
+    if best_cat:
+        vc = df[best_cat].value_counts().head(7)
+        PAL_P = [TEAL, ORANGE, BLUE, CORAL, "#a855f7", "#ec4899", "#84cc16"]
+        fig_p = go.Figure(go.Pie(
+            labels=[str(l)[:15] for l in vc.index], values=vc.values, hole=0.5,
+            marker=dict(colors=PAL_P[:len(vc)], line=dict(color=CARD_BG, width=2)),
+            textfont=dict(size=8, color="#fff"), textposition="inside"
+        ))
+        fig_p.update_layout(
+            height=210, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(t=4, b=4, l=4, r=30),
+            legend=dict(font=dict(size=8, color=TEXT_SEC), bgcolor="rgba(0,0,0,0)", x=1.02)
+        )
+        st.plotly_chart(fig_p, use_container_width=True, config=CFG)
+    else:
+        st.info("Aucune colonne catégorielle.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-elif len(num_cols) >= 2:
-    # Scatter matrix si pas de catégorielle
-    st.markdown('<div class="sec">Relations entre variables numériques</div>', unsafe_allow_html=True)
-    cols_sm = num_cols[:4]
-    fig = px.scatter_matrix(df.sample(min(300, len(df))), dimensions=cols_sm,
-                            color_discrete_sequence=[RED], opacity=0.5)
-    fig.update_traces(diagonal_visible=False, showupperhalf=False, marker=dict(size=3))
-    chart_layout(fig, 450)
-    st.plotly_chart(fig, use_container_width=True)
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
+# ── FOOTER ────────────────────────────────────────────────────────────────────
+miss_info = " · ".join([f"{c}: {v}" for c, v in
+    [(c, int(df[c].isnull().sum())) for c in df.columns if df[c].isnull().sum() > 0][:4]]
+) or "✅ Aucune valeur manquante"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — INSIGHTS AUTOMATIQUES
-# ─────────────────────────────────────────────────────────────────────────────
-
-st.markdown('<div class="sec">Insights clés — ce que vos données révèlent</div>', unsafe_allow_html=True)
-
-insights = []
-
-# Manquants
-if missing_pct == 0:
-    insights.append(("ok", "✅ Données complètes — aucune valeur manquante."))
-elif missing_pct > 20:
-    insights.append(("bad", f"🚨 {missing_pct}% de valeurs manquantes — fiabilité compromise. Nettoyage requis avant toute décision."))
-else:
-    insights.append(("warn", f"⚠️ {missing_pct}% de valeurs manquantes — à traiter."))
-
-# Doublons
-if duplicates > 0:
-    pct_dup = round(100 * duplicates / n_rows, 1)
-    insights.append(("warn", f"⚠️ {duplicates} lignes dupliquées ({pct_dup}%) — risque de double comptage."))
-
-# Outliers
-for col in num_cols[:5]:
-    s = df[col].dropna()
-    if len(s) < 4: continue
-    q1, q3 = s.quantile(0.25), s.quantile(0.75)
-    iqr = q3 - q1
-    out = s[(s < q1 - 1.5*iqr) | (s > q3 + 1.5*iqr)]
-    pct = round(100 * len(out) / len(s), 1)
-    if pct > 5:
-        insights.append(("warn", f"⚠️ <strong>{col}</strong> : {len(out)} valeurs aberrantes ({pct}%) — vérifier si erreurs de saisie."))
-
-# Asymétrie
-for col in num_cols[:5]:
-    s = df[col].dropna()
-    skew = s.skew()
-    if abs(skew) > 2:
-        insights.append(("warn", f"📐 <strong>{col}</strong> : distribution très asymétrique (skew={skew:.1f}) — préférez la médiane ({fmt(s.median())}) à la moyenne ({fmt(s.mean())})."))
-
-# Corrélations fortes
-if len(num_cols) >= 2:
-    corr = df[num_cols].corr()
-    pairs = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool)).stack()
-    for (a, b), r in pairs[pairs.abs() >= 0.75].items():
-        direction = "positivement" if r > 0 else "négativement"
-        insights.append(("warn", f"🔗 <strong>{a}</strong> et <strong>{b}</strong> sont fortement liées {direction} (r={r:.2f})."))
-
-# Concentration catégorielle
-if best_cat:
-    vc = df[best_cat].value_counts()
-    top_pct = round(100 * vc.iloc[0] / df[best_cat].count(), 1)
-    if top_pct > 60:
-        insights.append(("warn", f"⚠️ <strong>{best_cat}</strong> : \"{vc.index[0]}\" concentre {top_pct}% des données."))
-
-# Tendance temporelle
-if best_date and best_num:
-    try:
-        ts = df[[best_date, best_num]].copy()
-        ts[best_date] = pd.to_datetime(ts[best_date], errors="coerce")
-        ts = ts.dropna().sort_values(best_date)
-        if len(ts) > 3:
-            first_half = ts["value"].mean() if "value" in ts else ts[best_num].head(len(ts)//2).mean()
-            second_half = ts[best_num].tail(len(ts)//2).mean()
-            change = round((second_half - first_half) / abs(first_half) * 100, 1) if first_half != 0 else 0
-            if change > 10:
-                insights.append(("ok", f"📈 <strong>{best_num}</strong> : tendance haussière (+{change}% entre première et deuxième moitié de période)."))
-            elif change < -10:
-                insights.append(("bad", f"📉 <strong>{best_num}</strong> : tendance baissière ({change}% entre première et deuxième moitié de période)."))
-    except: pass
-
-# Affichage en 2 colonnes
-if insights:
-    left, right = st.columns(2)
-    for i, (kind, msg) in enumerate(insights[:10]):
-        cls = "insight-ok" if kind == "ok" else ("insight-warn" if kind == "warn" else "")
-        target = left if i % 2 == 0 else right
-        target.markdown(f'<div class="insight {cls}">{msg}</div>', unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION 4 — DONNÉES BRUTES & EXPORT
-# ─────────────────────────────────────────────────────────────────────────────
-
-st.markdown('<div class="sec">Données & Export</div>', unsafe_allow_html=True)
-
-tab1, tab2 = st.tabs(["🔍  Aperçu des données", "⬇️  Télécharger"])
-
-with tab1:
-    st.dataframe(df.head(50), use_container_width=True, height=320)
-
-with tab2:
-    import io
-
-    c1, c2 = st.columns(2)
-    with c1:
-        buf = io.BytesIO()
-        with pd.ExcelWriter(buf, engine="openpyxl") as w:
-            df.to_excel(w, index=False)
-        st.download_button("⬇️  Excel complet", buf.getvalue(),
-                           f"{uploaded.name.split('.')[0]}_export.xlsx",
-                           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    with c2:
-        st.download_button("⬇️  CSV complet", df.to_csv(index=False).encode("utf-8"),
-                           f"{uploaded.name.split('.')[0]}_export.csv", "text/csv")
+st.markdown(f"""
+<div style="background:{CARD_BG};border:1px solid {BORDER};border-radius:8px;
+     padding:7px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+  <span style="font-size:10px;color:{TEXT_DIM}">
+    <b style="color:#0ea5e9">{n:,}</b> / <b style="color:#fff">{len(df_raw):,}</b> lignes affichées
+  </span>
+  <span style="font-size:10px;color:{TEXT_DIM}">Manquants : <b style="color:{ORANGE}">{miss_info[:70]}</b></span>
+  <span style="font-size:10px;color:{TEXT_DIM}">Score composite : <b style="color:{TEAL}">{oee}%</b></span>
+  <span style="font-size:10px;color:#334155">Torre de Controle · v4.0</span>
+</div>
+""", unsafe_allow_html=True)
