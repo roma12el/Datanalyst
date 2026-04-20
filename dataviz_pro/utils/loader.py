@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import io
 
 
 def load_data(uploaded_file):
@@ -10,54 +9,25 @@ def load_data(uploaded_file):
         if name.endswith((".xlsx", ".xls")):
             xls = pd.ExcelFile(uploaded_file)
             sheet_info["sheets"] = xls.sheet_names
-            sheet_info["active"] = xls.sheet_names[0]
             import streamlit as st
+            chosen = xls.sheet_names[0]
             if len(xls.sheet_names) > 1:
-                chosen = st.sidebar.selectbox("📋 Excel Sheet", xls.sheet_names)
-                sheet_info["active"] = chosen
-            df = pd.read_excel(uploaded_file, sheet_name=sheet_info["active"])
+                chosen = st.sidebar.selectbox("Feuille Excel", xls.sheet_names)
+            sheet_info["active"] = chosen
+            df = pd.read_excel(uploaded_file, sheet_name=chosen)
         elif name.endswith(".csv"):
-            raw = uploaded_file.read()
-            uploaded_file.seek(0)
+            raw = uploaded_file.read(); uploaded_file.seek(0)
             sample = raw[:2048].decode("utf-8", errors="replace")
             sep = ";" if sample.count(";") > sample.count(",") else ","
             df = pd.read_csv(uploaded_file, sep=sep, encoding="utf-8", on_bad_lines="skip")
-            sheet_info["sheets"] = ["CSV"]
-            sheet_info["active"] = "CSV"
         elif name.endswith(".tsv"):
             df = pd.read_csv(uploaded_file, sep="\t", encoding="utf-8", on_bad_lines="skip")
-            sheet_info["sheets"] = ["TSV"]
-            sheet_info["active"] = "TSV"
         else:
             return None, {}
-
         df.columns = [str(c).strip() for c in df.columns]
         df = df.dropna(how="all").reset_index(drop=True)
         return df, sheet_info
     except Exception as e:
         import streamlit as st
-        st.error(f"Read error: {e}")
+        st.error(f"Erreur : {e}")
         return None, {}
-
-
-def get_file_info(df):
-    num_cols = df.select_dtypes(include=np.number).columns.tolist()
-    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
-    date_cols = df.select_dtypes(include=["datetime"]).columns.tolist()
-    for c in cat_cols:
-        try:
-            pd.to_datetime(df[c], infer_datetime_format=True)
-            date_cols.append(c)
-        except Exception:
-            pass
-    return {
-        "rows": len(df),
-        "cols": len(df.columns),
-        "num_cols": num_cols,
-        "cat_cols": cat_cols,
-        "date_cols": date_cols,
-        "missing": int(df.isnull().sum().sum()),
-        "missing_pct": round(100 * df.isnull().sum().sum() / (df.shape[0] * df.shape[1]), 2),
-        "duplicates": int(df.duplicated().sum()),
-        "memory_mb": round(df.memory_usage(deep=True).sum() / 1e6, 3),
-    }

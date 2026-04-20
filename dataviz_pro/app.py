@@ -5,7 +5,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 st.set_page_config(
-    page_title="APEX Analytics",
+    page_title="Décision Analytique",
     page_icon="🔴",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -13,405 +13,206 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
     --red: #E8002D;
-    --red-dark: #B8001F;
-    --red-light: #FF1A45;
-    --red-ultra: #FF0038;
+    --red-soft: #FFF0F3;
     --white: #FFFFFF;
-    --off-white: #F7F7F7;
-    --cream: #FFF5F5;
-    --gray-100: #F2F2F2;
-    --gray-200: #E5E5E5;
-    --gray-300: #D4D4D4;
-    --gray-500: #737373;
-    --gray-700: #404040;
-    --gray-900: #171717;
-    --black: #0A0A0A;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
-    --shadow-red: 0 4px 24px rgba(232,0,45,0.18);
+    --gray-50: #FAFAFA;
+    --gray-100: #F4F4F5;
+    --gray-200: #E4E4E7;
+    --gray-400: #A1A1AA;
+    --gray-600: #52525B;
+    --gray-900: #09090B;
+    --green: #16A34A;
+    --green-soft: #F0FDF4;
+    --orange: #EA580C;
+    --orange-soft: #FFF7ED;
 }
 
-* { box-sizing: border-box; }
+*, body { font-family: 'Inter', sans-serif !important; }
 
-html, body, [data-testid="stAppViewContainer"] {
-    background: var(--white) !important;
-    font-family: 'DM Sans', sans-serif !important;
-}
+[data-testid="stAppViewContainer"] { background: var(--gray-50) !important; }
 
 [data-testid="stSidebar"] {
-    background: var(--black) !important;
-    border-right: none !important;
+    background: var(--gray-900) !important;
 }
-
-[data-testid="stSidebar"] > div {
-    background: var(--black) !important;
-}
-
-[data-testid="stSidebarContent"] {
-    background: var(--black) !important;
-}
-
-/* Sidebar text */
-[data-testid="stSidebar"] * {
-    color: var(--white) !important;
-}
-
-[data-testid="stSidebar"] .stMarkdown p,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] .stRadio label span {
-    color: rgba(255,255,255,0.75) !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.82rem !important;
-    letter-spacing: 0.02em;
-}
-
+[data-testid="stSidebar"] * { color: white !important; }
 [data-testid="stSidebar"] [data-testid="stFileUploader"] {
-    background: rgba(255,255,255,0.05) !important;
-    border: 1.5px dashed rgba(232,0,45,0.5) !important;
-    border-radius: 10px !important;
+    background: rgba(255,255,255,0.06) !important;
+    border: 1.5px dashed rgba(232,0,45,0.4) !important;
+    border-radius: 8px !important;
 }
-
-/* Radio buttons in sidebar */
-[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
-    color: rgba(255,255,255,0.6) !important;
-    font-size: 0.78rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-}
-
-/* Active radio */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:has(input:checked) span {
-    color: var(--red-light) !important;
-    font-weight: 600 !important;
-}
-
-/* Main content area */
 .main .block-container {
-    padding: 2rem 2.5rem 3rem !important;
-    max-width: 1600px !important;
+    padding: 1.5rem 2rem 3rem !important;
+    max-width: 1400px !important;
 }
 
-/* Headers */
-h1, h2, h3 { font-family: 'DM Sans', sans-serif !important; }
-
-.apex-logo {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.4rem;
-    letter-spacing: 0.1em;
-    color: var(--white);
-    line-height: 1;
-}
-
-.apex-logo span {
-    color: var(--red);
-}
-
-.apex-tagline {
-    font-size: 0.65rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.35);
-    margin-top: 2px;
-    font-family: 'DM Sans', sans-serif;
-}
-
-.page-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 2px solid var(--gray-100);
-}
-
-.page-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.8rem;
-    letter-spacing: 0.06em;
-    color: var(--gray-900);
-    line-height: 1;
-    margin: 0;
-}
-
-.page-title span {
-    color: var(--red);
-}
-
-.page-subtitle {
-    font-size: 0.82rem;
-    color: var(--gray-500);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-top: 4px;
-}
-
-/* Metric cards */
-.metric-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-    margin: 1.5rem 0;
-}
-
-.metric-card {
-    background: var(--white);
-    border: 1.5px solid var(--gray-200);
+/* Decision card */
+.decision-card {
+    background: white;
     border-radius: 12px;
-    padding: 1.2rem 1.4rem;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.2s ease;
+    border: 1px solid var(--gray-200);
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1rem;
 }
 
-.metric-card:hover {
-    border-color: var(--red);
-    box-shadow: var(--shadow-red);
-    transform: translateY(-2px);
+/* Alert cards */
+.alert-red {
+    background: var(--red-soft);
+    border: 1px solid rgba(232,0,45,0.25);
+    border-left: 4px solid var(--red);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-size: 0.84rem;
+    color: #7F0018;
+}
+.alert-green {
+    background: var(--green-soft);
+    border: 1px solid rgba(22,163,74,0.25);
+    border-left: 4px solid var(--green);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-size: 0.84rem;
+    color: #14532D;
+}
+.alert-orange {
+    background: var(--orange-soft);
+    border: 1px solid rgba(234,88,12,0.25);
+    border-left: 4px solid var(--orange);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-size: 0.84rem;
+    color: #7C2D12;
 }
 
-.metric-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: var(--red);
+/* KPI */
+.kpi-row { display: flex; gap: 12px; margin: 1rem 0; flex-wrap: wrap; }
+.kpi {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 1rem 1.3rem;
+    flex: 1;
+    min-width: 130px;
 }
-
-.metric-card .label {
+.kpi .label {
     font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray-400);
+    margin-bottom: 4px;
+}
+.kpi .val {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1.1;
+}
+.kpi .sub { font-size: 0.72rem; color: var(--gray-400); margin-top: 3px; }
+.kpi.danger .val { color: var(--red); }
+.kpi.good .val { color: var(--green); }
+
+/* Section header */
+.section-header {
+    font-size: 0.7rem;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--gray-500);
-    font-weight: 600;
-    margin-bottom: 6px;
-}
-
-.metric-card .value {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2rem;
-    letter-spacing: 0.04em;
-    color: var(--gray-900);
-    line-height: 1;
-}
-
-.metric-card .sub {
-    font-size: 0.7rem;
-    color: var(--gray-500);
-    margin-top: 4px;
-}
-
-/* Section titles */
-.section-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.5rem;
-    letter-spacing: 0.08em;
-    color: var(--gray-900);
-    margin: 2rem 0 1rem;
+    color: var(--gray-400);
+    margin: 1.8rem 0 0.8rem;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
-
-.section-title::after {
+.section-header::after {
     content: '';
     flex: 1;
-    height: 1.5px;
-    background: linear-gradient(90deg, var(--red) 0%, var(--gray-200) 100%);
+    height: 1px;
+    background: var(--gray-200);
 }
 
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    background: var(--gray-100) !important;
-    border-radius: 10px !important;
-    padding: 4px !important;
-    gap: 2px !important;
-    border: none !important;
+/* Page title */
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 4px;
 }
-
-.stTabs [data-baseweb="tab"] {
-    background: transparent !important;
-    color: var(--gray-500) !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.82rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.03em !important;
-    border-radius: 8px !important;
-    padding: 8px 16px !important;
-    transition: all 0.18s ease !important;
-}
-
-.stTabs [aria-selected="true"] {
-    background: var(--white) !important;
-    color: var(--red) !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-}
-
-.stTabs [data-baseweb="tab-panel"] {
-    padding-top: 1.5rem !important;
+.page-title span { color: var(--red); }
+.page-sub {
+    font-size: 0.8rem;
+    color: var(--gray-400);
+    margin-bottom: 1.5rem;
 }
 
 /* Buttons */
 .stButton > button {
     background: var(--red) !important;
-    color: var(--white) !important;
+    color: white !important;
     border: none !important;
     border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important;
     font-weight: 600 !important;
     font-size: 0.82rem !important;
-    letter-spacing: 0.05em !important;
-    text-transform: uppercase !important;
-    padding: 10px 20px !important;
-    transition: all 0.2s ease !important;
+    padding: 9px 18px !important;
 }
-
-.stButton > button:hover {
-    background: var(--red-dark) !important;
-    box-shadow: var(--shadow-red) !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Download buttons */
 .stDownloadButton > button {
     background: var(--gray-900) !important;
-    color: var(--white) !important;
+    color: white !important;
     border: none !important;
     border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 0.78rem !important;
-    letter-spacing: 0.05em !important;
-    padding: 9px 18px !important;
-    transition: all 0.2s ease !important;
+    font-size: 0.8rem !important;
 }
 
-.stDownloadButton > button:hover {
-    background: var(--red) !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Selectbox */
-.stSelectbox > div > div {
-    background: var(--white) !important;
-    border: 1.5px solid var(--gray-200) !important;
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background: var(--gray-100) !important;
     border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important;
-    color: var(--gray-900) !important;
+    padding: 3px !important;
+    border: none !important;
 }
-
-.stSelectbox > div > div:focus-within {
-    border-color: var(--red) !important;
-    box-shadow: 0 0 0 2px rgba(232,0,45,0.12) !important;
+.stTabs [data-baseweb="tab"] {
+    background: transparent !important;
+    color: var(--gray-400) !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    padding: 7px 14px !important;
 }
-
-/* Sliders */
-.stSlider [data-baseweb="slider"] [role="slider"] {
-    background: var(--red) !important;
-    border-color: var(--red) !important;
-}
-
-.stSlider [data-baseweb="slider"] [data-testid="stSliderTrackFill"] {
-    background: var(--red) !important;
+.stTabs [aria-selected="true"] {
+    background: white !important;
+    color: var(--red) !important;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08) !important;
 }
 
 /* Metrics */
 [data-testid="metric-container"] {
-    background: var(--off-white) !important;
+    background: white !important;
     border: 1px solid var(--gray-200) !important;
-    border-radius: 10px !important;
-    padding: 14px 18px !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
 }
-
-[data-testid="metric-container"] [data-testid="stMetricValue"] {
-    font-family: 'Bebas Neue', sans-serif !important;
-    font-size: 1.8rem !important;
-    letter-spacing: 0.05em !important;
+[data-testid="stMetricValue"] {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
     color: var(--gray-900) !important;
 }
-
-[data-testid="metric-container"] [data-testid="stMetricLabel"] {
+[data-testid="stMetricLabel"] {
     font-size: 0.68rem !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    color: var(--gray-500) !important;
+    letter-spacing: 0.08em !important;
     font-weight: 600 !important;
 }
 
-/* DataFrames */
+/* Dataframes */
 [data-testid="stDataFrame"] {
-    border: 1.5px solid var(--gray-200) !important;
-    border-radius: 10px !important;
-    overflow: hidden !important;
-}
-
-/* Alerts */
-.stSuccess {
-    background: #F0FFF4 !important;
-    border-color: #22C55E !important;
+    border: 1px solid var(--gray-200) !important;
     border-radius: 8px !important;
-}
-
-.stWarning {
-    background: #FFFBEB !important;
-    border-color: #F59E0B !important;
-    border-radius: 8px !important;
-}
-
-.stInfo {
-    background: var(--cream) !important;
-    border-color: var(--red) !important;
-    border-radius: 8px !important;
-}
-
-/* Dividers */
-hr {
-    border: none !important;
-    border-top: 1.5px solid var(--gray-100) !important;
-    margin: 1.5rem 0 !important;
-}
-
-/* Insight boxes */
-.insight-card {
-    background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-left: 3px solid var(--red);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    font-size: 0.84rem;
-    color: var(--gray-700);
-    font-family: 'DM Sans', sans-serif;
-}
-
-.badge-red {
-    display: inline-block;
-    background: var(--red);
-    color: white;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 4px;
-    margin-right: 6px;
-}
-
-.badge-dark {
-    display: inline-block;
-    background: var(--gray-900);
-    color: white;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 4px;
-    margin-right: 6px;
 }
 
 /* Radio */
@@ -419,256 +220,97 @@ hr {
     font-size: 0.7rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.1em !important;
-    color: var(--gray-500) !important;
     font-weight: 600 !important;
+    color: var(--gray-400) !important;
 }
-
-/* Checkbox */
-.stCheckbox label span {
-    font-size: 0.84rem !important;
-    color: var(--gray-700) !important;
-}
-
-/* Expander */
-.streamlit-expanderHeader {
-    background: var(--gray-100) !important;
-    border-radius: 8px !important;
-    font-size: 0.82rem !important;
-    font-weight: 600 !important;
-}
-
-/* Multiselect */
-.stMultiSelect [data-baseweb="tag"] {
-    background: var(--red) !important;
-    border-radius: 4px !important;
-}
-
-/* File uploader */
-[data-testid="stFileUploader"] {
-    border: 2px dashed var(--gray-300) !important;
-    border-radius: 12px !important;
-    background: var(--off-white) !important;
-}
-
-/* Plotly charts */
-.js-plotly-plot {
-    border-radius: 12px !important;
-    box-shadow: var(--shadow-sm) !important;
-}
-
-/* Success alert with red theme */
-.stAlert [data-testid="stMarkdownContainer"] {
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.84rem !important;
-}
-
-/* Sidebar nav labels */
-.sidebar-nav-label {
-    font-size: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    color: rgba(255,255,255,0.3);
-    margin: 16px 0 8px;
-    padding-left: 2px;
-    font-family: 'DM Sans', sans-serif;
-}
-
-.sidebar-version {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.6rem;
-    color: rgba(255,255,255,0.2);
-    letter-spacing: 0.1em;
-    margin-top: 4px;
-}
-
-.hero-welcome {
-    background: var(--black);
-    border-radius: 16px;
-    padding: 3rem;
-    text-align: center;
-    margin: 2rem 0;
-}
-
-.hero-welcome h1 {
-    font-family: 'Bebas Neue', sans-serif !important;
-    font-size: 4rem;
-    letter-spacing: 0.1em;
-    color: var(--white);
-    margin: 0 0 0.5rem;
-}
-
-.hero-welcome h1 span { color: var(--red); }
-
-.hero-welcome p {
-    color: rgba(255,255,255,0.45);
-    font-size: 0.85rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin: 0;
-}
-
-.feature-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 2rem;
-}
-
-.feature-card {
-    background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-align: left;
-}
-
-.feature-card .icon {
-    font-size: 1.5rem;
-    margin-bottom: 0.8rem;
-}
-
-.feature-card .name {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.2rem;
-    letter-spacing: 0.08em;
-    color: var(--gray-900);
-    margin-bottom: 0.4rem;
-}
-
-.feature-card .desc {
-    font-size: 0.8rem;
-    color: var(--gray-500);
-    line-height: 1.5;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+hr { border: none !important; border-top: 1px solid var(--gray-200) !important; margin: 1rem 0 !important; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--gray-100); }
-::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--red); }
-
-/* Main block container fix */
-.block-container { padding-top: 1.5rem !important; }
+::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
 </style>
 """, unsafe_allow_html=True)
 
-from utils.loader import load_data, get_file_info
-
-# ── Sidebar ─────────────────────────────────────────────────────────────────
+# ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style="padding: 20px 0 16px;">
-        <div class="apex-logo">APEX<span>.</span></div>
-        <div class="apex-tagline">Analytics Platform</div>
+    <div style="padding:16px 0 12px">
+        <div style="font-size:1.3rem;font-weight:800;color:white;letter-spacing:-0.02em">
+            Décision <span style="color:#E8002D">Analytique</span>
+        </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.35);text-transform:uppercase;
+                    letter-spacing:0.15em;margin-top:2px">Aide à la décision</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:0 0 16px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin-bottom:14px"></div>', unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader(
-        "LOAD DATASET",
-        type=["xlsx", "xls", "csv", "tsv"],
-        help="Excel (.xlsx/.xls) or CSV/TSV",
-        label_visibility="visible"
-    )
+    uploaded_file = st.file_uploader("Charger un fichier", type=["xlsx", "xls", "csv", "tsv"])
 
     if uploaded_file:
         st.markdown(f"""
-        <div style="background:rgba(232,0,45,0.12);border:1px solid rgba(232,0,45,0.3);
-                    border-radius:8px;padding:8px 12px;margin:8px 0;font-size:0.75rem;
-                    color:rgba(255,255,255,0.8);font-family:'DM Sans',sans-serif;">
-            ✓ &nbsp;<strong style="color:white;">{uploaded_file.name}</strong>
-        </div>
-        """, unsafe_allow_html=True)
+        <div style="background:rgba(232,0,45,0.1);border:1px solid rgba(232,0,45,0.25);
+                    border-radius:6px;padding:8px 10px;margin:8px 0;font-size:0.75rem;color:rgba(255,255,255,0.8)">
+            ✓ {uploaded_file.name}
+        </div>""", unsafe_allow_html=True)
 
-    st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:16px 0;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-nav-label">Navigation</div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:12px 0"></div>', unsafe_allow_html=True)
 
-    page = st.radio(
-        "Module",
-        ["🏠  Overview & Profiling",
-         "📈  Univariate Analysis",
-         "🔗  Correlations & Bivariate",
-         "🎯  KPI Dashboard",
-         "📅  Time Series",
-         "📤  Export & Report"],
-        label_visibility="collapsed"
-    )
+    page = st.radio("", [
+        "🏠  Vue d'ensemble",
+        "📊  Analyse des colonnes",
+        "🔗  Relations entre variables",
+        "⚠️  Alertes & Anomalies",
+        "📤  Export",
+    ], label_visibility="collapsed")
 
-    st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:16px 0;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-version">APEX v2.0 · WORLD CLASS</div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:12px 0"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.6rem;color:rgba(255,255,255,0.2);letter-spacing:0.1em">DÉCISION ANALYTIQUE v1.0</div>', unsafe_allow_html=True)
 
-# ── Main Header ─────────────────────────────────────────────────────────────
+# ── Welcome ───────────────────────────────────────────────────────────────────
 if not uploaded_file:
     st.markdown("""
-    <div class="hero-welcome">
-        <h1>APEX<span>.</span>ANALYTICS</h1>
-        <p>World-class data intelligence platform · Upload your dataset to begin</p>
+    <div style="text-align:center;padding:4rem 2rem">
+        <div style="font-size:3rem;font-weight:800;color:#09090B;letter-spacing:-0.03em;margin-bottom:8px">
+            Prenez de meilleures <span style="color:#E8002D">décisions</span>
+        </div>
+        <div style="font-size:1rem;color:#A1A1AA;max-width:520px;margin:0 auto 2.5rem;line-height:1.6">
+            Chargez votre fichier Excel ou CSV. L'outil analyse automatiquement vos données
+            et vous donne les insights clés pour agir.
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="feature-row">
-        <div class="feature-card">
-            <div class="icon">🔍</div>
-            <div class="name">Auto Profiling</div>
-            <div class="desc">Instant column profiling, missing values, outlier detection, and distribution analysis.</div>
-        </div>
-        <div class="feature-card">
-            <div class="icon">📊</div>
-            <div class="name">50+ Chart Types</div>
-            <div class="desc">Histograms, scatter matrices, heatmaps, candlesticks, sunbursts, funnels, and more.</div>
-        </div>
-        <div class="feature-card">
-            <div class="icon">🎯</div>
-            <div class="name">KPI Dashboards</div>
-            <div class="desc">Auto-built KPI gauges, waterfalls, treemaps, and funnel charts from your data.</div>
-        </div>
-        <div class="feature-card">
-            <div class="icon">📅</div>
-            <div class="name">Time Series</div>
-            <div class="desc">OHLC candlesticks, seasonality heatmaps, moving averages, and cumulative returns.</div>
-        </div>
-        <div class="feature-card">
-            <div class="icon">🔗</div>
-            <div class="name">Correlation Engine</div>
-            <div class="desc">Pearson / Spearman / Kendall matrices, ANOVA, Kruskal-Wallis significance tests.</div>
-        </div>
-        <div class="feature-card">
-            <div class="icon">📤</div>
-            <div class="name">One-Click Export</div>
-            <div class="desc">Markdown reports, cleaned Excel/CSV, column profiles — all downloadable instantly.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    for col, icon, title, desc in [
+        (c1, "📋", "Vue d'ensemble instantanée", "KPIs, qualité des données, résumé en un coup d'œil"),
+        (c2, "🔍", "Insights automatiques", "Anomalies, corrélations et patterns détectés automatiquement"),
+        (c3, "⚠️", "Alertes décision", "Valeurs aberrantes, manques critiques, risques identifiés"),
+    ]:
+        with col:
+            st.markdown(f"""
+            <div class="decision-card" style="text-align:center">
+                <div style="font-size:1.8rem;margin-bottom:10px">{icon}</div>
+                <div style="font-weight:700;font-size:0.95rem;color:#09090B;margin-bottom:6px">{title}</div>
+                <div style="font-size:0.8rem;color:#A1A1AA;line-height:1.5">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
     st.stop()
 
-# Load data
+# ── Load data ─────────────────────────────────────────────────────────────────
+from utils.loader import load_data
 df, sheet_info = load_data(uploaded_file)
-
 if df is None:
-    st.error("❌ Cannot read file. Check the format and try again.")
+    st.error("❌ Impossible de lire ce fichier.")
     st.stop()
 
-st.session_state["df"] = df
-st.session_state["filename"] = uploaded_file.name
-
-# ── PAGE ROUTER ──────────────────────────────────────────────────────────────
-if page == "🏠  Overview & Profiling":
-    from pages.profiling import show
-    show(df, uploaded_file.name, sheet_info)
-elif page == "📈  Univariate Analysis":
-    from pages.univariate import show
-    show(df)
-elif page == "🔗  Correlations & Bivariate":
-    from pages.bivariate import show
-    show(df)
-elif page == "🎯  KPI Dashboard":
-    from pages.kpi import show
-    show(df)
-elif page == "📅  Time Series":
-    from pages.timeseries import show
-    show(df)
-elif page == "📤  Export & Report":
-    from pages.export import show
-    show(df, uploaded_file.name)
+# ── Route ──────────────────────────────────────────────────────────────────────
+if page == "🏠  Vue d'ensemble":
+    from pages.overview import show; show(df, uploaded_file.name)
+elif page == "📊  Analyse des colonnes":
+    from pages.columns import show; show(df)
+elif page == "🔗  Relations entre variables":
+    from pages.relations import show; show(df)
+elif page == "⚠️  Alertes & Anomalies":
+    from pages.alerts import show; show(df)
+elif page == "📤  Export":
+    from pages.export import show; show(df, uploaded_file.name)

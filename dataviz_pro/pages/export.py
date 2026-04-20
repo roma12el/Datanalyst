@@ -2,200 +2,127 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import io
-from utils.profiling import compute_profile
-from utils.export import df_to_excel_bytes, df_to_csv_bytes
 
-RED = "#E8002D"
-DARK = "#171717"
+
+def to_excel(df):
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        df.to_excel(w, index=False)
+    return buf.getvalue()
+
+
+def to_csv(df):
+    return df.to_csv(index=False).encode("utf-8")
 
 
 def show(df, filename):
-    st.markdown("""
-    <div class="page-header">
-        <div>
-            <div class="page-title">EXPORT &amp;<span> REPORT</span></div>
-            <div class="page-subtitle">Executive report · Data download · Cleaning & Transforms</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="page-title">Export <span>& Nettoyage</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">Téléchargez vos données nettoyées et votre rapport synthétique.</div>', unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs([
-        "📋  Executive Report",
-        "⬇️  Data Export",
-        "🔧  Clean & Transform"
-    ])
+    tab1, tab2 = st.tabs(["🔧  Nettoyage rapide", "⬇️  Télécharger"])
 
-    # ── EXECUTIVE REPORT ──────────────────────────────────────────────────────
     with tab1:
+        st.markdown('<div class="section-header">Actions de nettoyage</div>', unsafe_allow_html=True)
+        clean_df = df.copy()
+        applied = []
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.checkbox("Supprimer les doublons"):
+                before = len(clean_df)
+                clean_df = clean_df.drop_duplicates()
+                removed = before - len(clean_df)
+                applied.append(f"✅ {removed} doublon(s) supprimé(s)")
+
+        with c2:
+            strat = st.selectbox("Valeurs manquantes (numériques)", [
+                "Conserver", "Supprimer les lignes incomplètes",
+                "Remplacer par la médiane", "Remplacer par la moyenne", "Remplacer par 0"
+            ])
+            if strat != "Conserver":
+                num_c = clean_df.select_dtypes(include=np.number).columns
+                if strat == "Supprimer les lignes incomplètes":
+                    before = len(clean_df)
+                    clean_df = clean_df.dropna()
+                    applied.append(f"✅ {before - len(clean_df)} ligne(s) supprimée(s)")
+                elif strat == "Remplacer par la médiane":
+                    clean_df[num_c] = clean_df[num_c].fillna(clean_df[num_c].median())
+                    applied.append("✅ Valeurs manquantes remplacées par la médiane")
+                elif strat == "Remplacer par la moyenne":
+                    clean_df[num_c] = clean_df[num_c].fillna(clean_df[num_c].mean())
+                    applied.append("✅ Valeurs manquantes remplacées par la moyenne")
+                elif strat == "Remplacer par 0":
+                    clean_df[num_c] = clean_df[num_c].fillna(0)
+                    applied.append("✅ Valeurs manquantes remplacées par 0")
+
+        for msg in applied:
+            st.markdown(f'<div class="alert-green">{msg}</div>', unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="decision-card" style="margin-top:1rem">
+            <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#A1A1AA;margin-bottom:8px">Résultat</div>
+            <div style="font-size:1rem;font-weight:600;color:#09090B">{len(clean_df):,} lignes × {len(clean_df.columns)} colonnes</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.dataframe(clean_df.head(10), use_container_width=True)
+
+    with tab2:
+        st.markdown('<div class="section-header">Télécharger</div>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.markdown("""
+            <div class="decision-card">
+                <div style="font-weight:600;margin-bottom:4px">Données nettoyées — Excel</div>
+                <div style="font-size:0.78rem;color:#A1A1AA;margin-bottom:12px">Format .xlsx, prêt pour Excel</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.download_button("⬇️  Télécharger Excel", to_excel(clean_df),
+                               f"donnees_nettoyees.xlsx",
+                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        with c2:
+            st.markdown("""
+            <div class="decision-card">
+                <div style="font-weight:600;margin-bottom:4px">Données nettoyées — CSV</div>
+                <div style="font-size:0.78rem;color:#A1A1AA;margin-bottom:12px">Format universel .csv</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.download_button("⬇️  Télécharger CSV", to_csv(clean_df), "donnees_nettoyees.csv", "text/csv")
+
+        # Rapport synthétique
+        st.markdown('<div class="section-header">Rapport de synthèse</div>', unsafe_allow_html=True)
         num_cols = df.select_dtypes(include=np.number).columns.tolist()
         cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
         missing_pct = round(100 * df.isnull().sum().sum() / (df.shape[0] * df.shape[1]), 2)
-        duplicates = int(df.duplicated().sum())
 
-        report_lines = [
-            f"# 📊 Analytics Report — {filename}",
-            f"*Generated by APEX Analytics Platform*",
+        rapport = [
+            f"# Rapport d'analyse — {filename}",
             "",
-            "---",
-            "## 1. Overview",
-            f"| Metric | Value |",
-            f"|--------|-------|",
-            f"| File | `{filename}` |",
-            f"| Dimensions | {df.shape[0]:,} rows × {df.shape[1]} columns |",
-            f"| Numeric columns | {len(num_cols)} |",
-            f"| Categorical columns | {len(cat_cols)} |",
-            f"| Missing values | {missing_pct}% |",
-            f"| Duplicates | {duplicates} |",
-            f"| Memory | {df.memory_usage(deep=True).sum() / 1e6:.2f} MB |",
+            "## Résumé",
+            f"- Fichier : {filename}",
+            f"- Dimensions : {df.shape[0]:,} lignes × {df.shape[1]} colonnes",
+            f"- Variables numériques : {len(num_cols)}",
+            f"- Variables catégorielles : {len(cat_cols)}",
+            f"- Valeurs manquantes : {missing_pct}%",
+            f"- Doublons : {int(df.duplicated().sum())}",
             "",
-            "## 2. Data Quality",
+            "## Statistiques clés",
         ]
-
-        if missing_pct == 0 and duplicates == 0:
-            report_lines.append("✅ **Clean dataset** — zero missing values and zero duplicates.")
-        if missing_pct > 0:
-            worst = df.isnull().sum().sort_values(ascending=False).head(5)
-            worst = worst[worst > 0]
-            report_lines.append(f"⚠️ **{missing_pct}% missing values** across dataset.")
-            for col, cnt in worst.items():
-                report_lines.append(f"- `{col}`: {cnt} missing ({100*cnt/len(df):.1f}%)")
-        if duplicates > 0:
-            report_lines.append(f"⚠️ **{duplicates} duplicate rows** detected.")
-
         if num_cols:
-            report_lines += ["", "## 3. Numeric Statistics", "```"]
-            desc = df[num_cols].describe().round(3)
-            report_lines.append(desc.to_string())
-            report_lines.append("```")
+            rapport.append(df[num_cols].describe().round(2).to_string())
 
-        if cat_cols:
-            report_lines += ["", "## 4. Categorical Columns"]
-            for col in cat_cols[:5]:
-                top = df[col].value_counts().head(3)
-                report_lines.append(f"**{col}** — {df[col].nunique()} unique values | Top: {', '.join([f'{k} ({v})' for k,v in top.items()])}")
+        rapport += ["", "## Alertes"]
+        if missing_pct > 10:
+            rapport.append(f"- ⚠️ {missing_pct}% de valeurs manquantes")
+        if df.duplicated().sum() > 0:
+            rapport.append(f"- ⚠️ {int(df.duplicated().sum())} doublons")
+        for col in num_cols:
+            s = df[col].dropna()
+            if abs(s.skew()) > 1.5:
+                rapport.append(f"- Distribution asymétrique : {col} (skew={s.skew():.2f})")
 
-        report_lines += ["", "## 5. Auto Insights"]
-        for col in num_cols[:5]:
-            skew = df[col].skew()
-            if abs(skew) > 1.5:
-                report_lines.append(f"- `{col}`: skewed distribution (skew={skew:.2f}) — log transform recommended")
-        if len(num_cols) >= 2:
-            corr = df[num_cols].corr()
-            pairs = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool)).stack()
-            high = pairs[pairs.abs() > 0.7]
-            if not high.empty:
-                report_lines.append(f"- **{len(high)} strong correlations** (|r| > 0.7) detected:")
-                for (a, b), r in list(high.items())[:5]:
-                    report_lines.append(f"   - `{a}` × `{b}`: r = {r:.3f}")
-
-        report_text = "\n".join(report_lines)
-        st.markdown(report_text)
-
-        st.markdown("---")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.download_button(
-                "⬇️  Download Report (.md)",
-                report_text.encode("utf-8"),
-                f"apex_report_{filename.split('.')[0]}.md",
-                "text/markdown"
-            )
-
-    # ── EXPORT DATA ───────────────────────────────────────────────────────────
-    with tab2:
-        st.markdown('<div class="section-title">Download Dataset</div>', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.markdown("""
-            <div class="metric-card">
-                <div class="label">Excel Format</div>
-                <div class="sub" style="margin-bottom:12px;">Full dataset as .xlsx</div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.download_button("⬇️  Excel (.xlsx)", df_to_excel_bytes(df),
-                               f"apex_{filename.split('.')[0]}.xlsx",
-                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-        with col2:
-            st.markdown("""
-            <div class="metric-card">
-                <div class="label">CSV Format</div>
-                <div class="sub" style="margin-bottom:12px;">Full dataset as .csv</div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.download_button("⬇️  CSV (.csv)", df_to_csv_bytes(df),
-                               f"apex_{filename.split('.')[0]}.csv", "text/csv")
-
-        with col3:
-            st.markdown("""
-            <div class="metric-card">
-                <div class="label">Column Profile</div>
-                <div class="sub" style="margin-bottom:12px;">Stats per column as .csv</div>
-            </div>
-            """, unsafe_allow_html=True)
-            profile = compute_profile(df)
-            st.download_button("⬇️  Profile (.csv)", profile.to_csv(index=False).encode("utf-8"),
-                               f"apex_profile_{filename.split('.')[0]}.csv", "text/csv")
-
-        st.markdown('<div class="section-title">Custom Export</div>', unsafe_allow_html=True)
-        selected_cols = st.multiselect("Select columns to export", df.columns.tolist(), default=df.columns.tolist())
-        if selected_cols:
-            filtered_df = df[selected_cols]
-            st.markdown(f"**Preview**: {len(filtered_df):,} rows × {len(selected_cols)} columns")
-            st.dataframe(filtered_df.head(20), use_container_width=True)
-            c1, c2 = st.columns(2)
-            c1.download_button("⬇️  Excel (selection)", df_to_excel_bytes(filtered_df), "apex_selection.xlsx")
-            c2.download_button("⬇️  CSV (selection)", df_to_csv_bytes(filtered_df), "apex_selection.csv")
-
-    # ── CLEANING ──────────────────────────────────────────────────────────────
-    with tab3:
-        st.markdown('<div class="section-title">Data Cleaning</div>', unsafe_allow_html=True)
-        clean_df = df.copy()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.checkbox("Remove duplicate rows"):
-                before = len(clean_df)
-                clean_df = clean_df.drop_duplicates()
-                st.success(f"✅ {before - len(clean_df)} duplicates removed")
-
-        with col2:
-            strategy = st.selectbox("Missing values strategy (numeric)", [
-                "Do nothing", "Drop rows", "Fill with mean",
-                "Fill with median", "Fill with 0"
-            ])
-            if strategy != "Do nothing":
-                num_c = clean_df.select_dtypes(include=np.number).columns
-                if strategy == "Drop rows":
-                    clean_df = clean_df.dropna()
-                elif strategy == "Fill with mean":
-                    clean_df[num_c] = clean_df[num_c].fillna(clean_df[num_c].mean())
-                elif strategy == "Fill with median":
-                    clean_df[num_c] = clean_df[num_c].fillna(clean_df[num_c].median())
-                elif strategy == "Fill with 0":
-                    clean_df[num_c] = clean_df[num_c].fillna(0)
-                st.success("✅ Strategy applied")
-
-        st.markdown('<div class="section-title">Normalization</div>', unsafe_allow_html=True)
-        norm_cols = st.multiselect("Columns to normalize",
-                                   clean_df.select_dtypes(include=np.number).columns.tolist())
-        norm_method = st.selectbox("Method", ["Min-Max [0,1]", "Z-score", "Log1p"])
-
-        if norm_cols and st.button("Apply Normalization"):
-            for col in norm_cols:
-                if norm_method == "Min-Max [0,1]":
-                    mn, mx = clean_df[col].min(), clean_df[col].max()
-                    clean_df[f"{col}_norm"] = (clean_df[col] - mn) / (mx - mn) if mx > mn else 0
-                elif norm_method == "Z-score":
-                    clean_df[f"{col}_zscore"] = (clean_df[col] - clean_df[col].mean()) / clean_df[col].std()
-                elif norm_method == "Log1p":
-                    clean_df[f"{col}_log1p"] = np.log1p(clean_df[col].clip(lower=0))
-            st.success(f"✅ Normalization applied on {len(norm_cols)} column(s)")
-            st.dataframe(clean_df.head(10), use_container_width=True)
-
-        st.markdown("---")
-        st.markdown(f"**Result**: {len(clean_df):,} rows × {len(clean_df.columns)} columns")
-        c1, c2 = st.columns(2)
-        c1.download_button("⬇️  Cleaned Excel", df_to_excel_bytes(clean_df), "apex_cleaned.xlsx")
-        c2.download_button("⬇️  Cleaned CSV", df_to_csv_bytes(clean_df), "apex_cleaned.csv")
+        rapport_text = "\n".join(rapport)
+        st.download_button("⬇️  Rapport synthèse (.md)", rapport_text.encode("utf-8"),
+                           f"rapport_{filename.split('.')[0]}.md", "text/markdown")
