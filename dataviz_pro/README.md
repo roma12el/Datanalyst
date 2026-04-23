@@ -1,35 +1,35 @@
-# 📊 Power BI Dashboard — Streamlit
+# Tableau de bord universel — Streamlit
 
-Tableau de bord style Power BI en une seule page, avec filtres croisés et graphiques Plotly.
+Application de visualisation automatique pour tout type de données Excel.
 
-## 🚀 Lancement local
+## Fonctionnalités
+- Import fichier Excel (.xlsx / .xls)
+- Détection automatique des colonnes (numériques, catégories, dates)
+- KPIs automatiques (somme, moyenne)
+- Graphiques adaptatifs (barres, donut, courbes, corrélations)
+- Filtres dynamiques dans la barre latérale
+- Analyse croisée personnalisable
+- Export des données filtrées
+
+## Installation
 
 ```bash
 pip install -r requirements.txt
+```
+
+## Lancement
+
+```bash
 streamlit run app.py
 ```
 
-## ☁️ Déploiement Streamlit Cloud
+L'application s'ouvre sur http://localhost:8501
 
-1. Créer repo GitHub public
-2. Pousser ces fichiers
-3. Aller sur share.streamlit.io → New App → sélectionner `app.py` → Deploy
-
-## 📂 Utilisation
-
-1. **Charger votre fichier** Excel/CSV dans la sidebar
-2. **Configurer les colonnes** : associer vos colonnes aux dimensions et mesures
-3. **Filtrer** avec les menus déroulants en haut
-4. Tous les graphiques se mettent à jour automatiquement
-
-## ✅ Colonnes reconnues automatiquement
-
-| Type | Utilisation |
-|------|-------------|
-| Étape / Stage | Barres empilées, win rate |
-| Région / Zone | Graphiques horizontaux, pie |
-| Taille / Segment | Donut, grouped bars |
-| Partenaire | Barres groupées |
-| CA / Revenue | KPIs, trend, agrégations |
-| CA Factorisé | Barres factorisées |
-| Date / Période | Trend temporel |
+## Types de données supportés
+- Financières (CA, charges, budget, marge...)
+- Opérationnelles (production, qualité, délais...)
+- RH (effectifs, absences, formations...)
+- Stocks et inventaire
+- Ventes et commandes
+- Informatique (inventaire parc, incidents...)
+- Et tout autre type de tableau Excel
