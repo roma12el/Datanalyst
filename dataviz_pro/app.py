@@ -351,7 +351,7 @@ def clean_dataframe(df_in):
             return np.nan
         return val
 
-    df = df.applymap(replace_nulls)
+    df = df.map(replace_nulls)
 
     # 5. Pour chaque colonne : essayer de convertir en nombre puis en date
     conversions = {'num': 0, 'date': 0}
