@@ -2,33 +2,536 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 from io import BytesIO
 import json, os, re, unicodedata
 
-st.set_page_config(page_title="Tableau de bord", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
+# ══════════════════════════════════════════════════════════════════
+#  PAGE CONFIG
+# ══════════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="Analytix Pro",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.markdown("""
+# ══════════════════════════════════════════════════════════════════
+#  DESIGN SYSTEM — ROUGE & BLANC PREMIUM
+# ══════════════════════════════════════════════════════════════════
+CRIMSON      = "#C0392B"
+CRIMSON_DEEP = "#922B21"
+CRIMSON_SOFT = "#E8DEDC"
+CRIMSON_PALE = "#FDF5F4"
+SLATE        = "#1A1F2C"
+SLATE_MID    = "#3D4560"
+MUTED        = "#8A94A6"
+SNOW         = "#FAF9F8"
+WHITE        = "#FFFFFF"
+
+CHART_COLORS = [CRIMSON, "#185FA5", "#1D9E75", "#BA7517", "#8e44ad", "#0F6E56", "#d35400"]
+
+st.markdown(f"""
 <style>
-[data-testid="stAppViewContainer"] { background: #f0f2f6; }
-[data-testid="stSidebar"] { background: #1e2d3d; }
-[data-testid="stSidebar"] * { color: white !important; }
-[data-testid="stSidebar"] h3 { color: #e0e8f0 !important; border-bottom: 1px solid #2e4a63; padding-bottom: 6px; }
-.block-container { padding: 1.2rem 2rem; }
-div[data-testid="stMetric"] { background: white; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-top: 4px solid #c0392b; }
-div[data-testid="stMetric"] label { font-size: 11px !important; color: #888 !important; text-transform: uppercase; letter-spacing: .5px; }
-div[data-testid="stMetric"] [data-testid="stMetricValue"] { font-size: 22px !important; font-weight: 700 !important; color: #1e2d3d !important; }
-div[data-testid="stMetric"] [data-testid="stMetricDelta"] svg { display: none; }
-.section-title { font-size: 15px; font-weight: 600; color: #1e2d3d; margin: 18px 0 10px; border-left: 4px solid #c0392b; padding-left: 10px; }
-.insight-good  { background: #f0fff4; border-left: 4px solid #27ae60; border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 5px 0; font-size: 13px; color: #1a5c2a; }
-.insight-alert { background: #fff0f0; border-left: 4px solid #c0392b; border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 5px 0; font-size: 13px; color: #7b1a1a; }
-.insight-warn  { background: #fff8f0; border-left: 4px solid #f39c12; border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 5px 0; font-size: 13px; color: #7a4f00; }
-.insight-info  { background: #f0f4ff; border-left: 4px solid #2980b9; border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 5px 0; font-size: 13px; color: #1a3a5c; }
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+/* ── GLOBAL ── */
+html, body, [class*="css"] {{
+    font-family: 'DM Sans', sans-serif !important;
+    color: {SLATE};
+}}
+[data-testid="stAppViewContainer"] {{
+    background: {SNOW};
+}}
+[data-testid="stMain"] {{
+    background: {SNOW};
+}}
+.block-container {{
+    padding: 0 !important;
+    max-width: 100% !important;
+}}
+
+/* ── SIDEBAR ── */
+[data-testid="stSidebar"] {{
+    background: {WHITE} !important;
+    border-right: 1px solid rgba(0,0,0,0.06) !important;
+}}
+[data-testid="stSidebar"] * {{
+    color: {SLATE} !important;
+}}
+[data-testid="stSidebar"] .stMarkdown h3 {{
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+    color: {MUTED} !important;
+    padding: 16px 0 6px !important;
+    border: none !important;
+}}
+[data-testid="stSidebar"] .stFileUploader {{
+    background: {CRIMSON_PALE};
+    border: 2px dashed rgba(192,57,43,0.3);
+    border-radius: 12px;
+    padding: 4px;
+}}
+[data-testid="stSidebar"] .stFileUploader label {{
+    color: {CRIMSON} !important;
+    font-weight: 500 !important;
+}}
+[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {{
+    background: {CRIMSON_PALE} !important;
+    color: {CRIMSON} !important;
+    border: none !important;
+}}
+[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] span {{
+    color: {CRIMSON} !important;
+}}
+[data-testid="stSidebar"] .stButton button {{
+    background: {WHITE};
+    border: 1px solid rgba(0,0,0,0.1);
+    color: {SLATE};
+    border-radius: 8px;
+    font-size: 12px;
+    transition: all .18s;
+}}
+[data-testid="stSidebar"] .stButton button:hover {{
+    border-color: {CRIMSON};
+    color: {CRIMSON};
+}}
+[data-testid="stSidebar"] .stSelectbox select,
+[data-testid="stSidebar"] [data-baseweb="select"] {{
+    background: {WHITE} !important;
+    border-color: rgba(0,0,0,0.08) !important;
+    border-radius: 8px !important;
+}}
+[data-testid="stSidebar"] .stSuccess {{
+    background: #E1F5EE !important;
+    border: 1px solid #9FE1CB !important;
+    color: #0F6E56 !important;
+    border-radius: 10px !important;
+}}
+[data-testid="stSidebar"] .stSuccess p {{
+    color: #0F6E56 !important;
+}}
+
+/* ── MAIN CONTENT ── */
+.main-wrapper {{
+    padding: 32px 40px 40px;
+}}
+
+/* ── PAGE HEADER ── */
+.page-header {{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+}}
+.page-title {{
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 30px;
+    color: {SLATE};
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+    margin: 0 0 5px;
+}}
+.page-sub {{
+    font-size: 13.5px;
+    color: {MUTED};
+    font-weight: 400;
+    margin: 0;
+}}
+.domain-badge {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: {CRIMSON};
+    color: white;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}}
+
+/* ── DROP ZONE ── */
+.dropzone {{
+    border: 2px dashed rgba(192,57,43,0.3);
+    border-radius: 16px;
+    background: {CRIMSON_PALE};
+    padding: 52px 40px;
+    text-align: center;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all .25s;
+}}
+.dropzone::before {{
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(192,57,43,0.06) 0%, transparent 70%);
+    pointer-events: none;
+}}
+.dz-icon-wrap {{
+    width: 58px;
+    height: 58px;
+    background: white;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px;
+    box-shadow: 0 4px 20px rgba(192,57,43,0.14);
+    font-size: 26px;
+}}
+.dz-title {{
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: {SLATE};
+    margin-bottom: 8px;
+}}
+.dz-sub {{
+    font-size: 13px;
+    color: {MUTED};
+    line-height: 1.65;
+    max-width: 460px;
+    margin: 0 auto;
+}}
+.dz-formats {{
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}}
+.dz-fmt {{
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 11px;
+    border-radius: 20px;
+    border: 1px solid rgba(192,57,43,0.2);
+    color: {CRIMSON};
+    background: white;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.3px;
+}}
+
+/* ── KPI CARDS ── */
+.kpi-outer {{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}}
+.kpi-card {{
+    background: {WHITE};
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    padding: 22px 24px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: all .22s;
+}}
+.kpi-card::before {{
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 2px 2px 0 0;
+}}
+.kpi-card.c-red::before   {{ background: {CRIMSON}; }}
+.kpi-card.c-teal::before  {{ background: #1D9E75; }}
+.kpi-card.c-amber::before {{ background: #BA7517; }}
+.kpi-card.c-blue::before  {{ background: #185FA5; }}
+.kpi-label {{
+    font-size: 10.5px;
+    font-weight: 600;
+    color: {MUTED};
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    margin-bottom: 10px;
+}}
+.kpi-value {{
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: {SLATE};
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 10px;
+}}
+.kpi-delta {{
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 20px;
+}}
+.kpi-delta.up   {{ color: #0F6E56; background: #E1F5EE; }}
+.kpi-delta.down {{ color: {CRIMSON}; background: {CRIMSON_PALE}; }}
+.kpi-delta.neu  {{ color: {MUTED}; background: rgba(0,0,0,0.05); }}
+.kpi-sub {{
+    font-size: 11px;
+    color: {MUTED};
+    margin-top: 5px;
+}}
+
+/* ── SECTION TITLE ── */
+.section-title {{
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: {SLATE};
+    margin: 24px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}}
+.section-title::before {{
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 18px;
+    background: {CRIMSON};
+    border-radius: 2px;
+}}
+
+/* ── INSIGHT CARDS ── */
+.insight-grid {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+}}
+.insight-card {{
+    background: {WHITE};
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}}
+.insight-icon {{
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+}}
+.insight-icon.red   {{ background: {CRIMSON_PALE}; }}
+.insight-icon.green {{ background: #E1F5EE; }}
+.insight-icon.amber {{ background: #FAEEDA; }}
+.insight-icon.blue  {{ background: #E6F1FB; }}
+.insight-body {{ flex: 1; }}
+.insight-title {{
+    font-size: 13px;
+    font-weight: 600;
+    color: {SLATE};
+    margin-bottom: 4px;
+}}
+.insight-text {{
+    font-size: 12px;
+    color: {MUTED};
+    line-height: 1.6;
+}}
+
+/* ── CHART CARDS ── */
+.chart-card {{
+    background: {WHITE};
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+}}
+
+/* ── STATUS BAR ── */
+.status-bar {{
+    background: {WHITE};
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+}}
+.status-items {{
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}}
+.status-dot {{
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}}
+.dot-green {{ background: #1D9E75; }}
+.dot-amber {{ background: #BA7517; }}
+.status-item {{
+    font-size: 12px;
+    color: {MUTED};
+    display: flex;
+    align-items: center;
+}}
+
+/* ── TABS ── */
+[data-testid="stTabs"] [data-baseweb="tab-list"] {{
+    background: rgba(0,0,0,0.03);
+    border-radius: 10px;
+    padding: 4px;
+    gap: 2px;
+    border: none !important;
+}}
+[data-testid="stTabs"] [data-baseweb="tab"] {{
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: {MUTED} !important;
+    border: none !important;
+    padding: 8px 18px !important;
+}}
+[data-testid="stTabs"] [aria-selected="true"] {{
+    background: {WHITE} !important;
+    color: {SLATE} !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+}}
+[data-testid="stTabs"] [data-baseweb="tab-border"] {{
+    display: none !important;
+}}
+
+/* ── METRICS override ── */
+div[data-testid="stMetric"] {{
+    background: {WHITE};
+    border-radius: 14px;
+    padding: 20px 22px;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-top: 3px solid {CRIMSON};
+}}
+div[data-testid="stMetric"] label {{
+    font-size: 10.5px !important;
+    color: {MUTED} !important;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-family: 'DM Sans', sans-serif !important;
+}}
+div[data-testid="stMetric"] [data-testid="stMetricValue"] {{
+    font-family: 'DM Serif Display', serif !important;
+    font-size: 28px !important;
+    color: {SLATE} !important;
+    letter-spacing: -0.8px !important;
+}}
+div[data-testid="stMetric"] [data-testid="stMetricDelta"] {{
+    font-size: 12px !important;
+}}
+
+/* ── EXPANDER ── */
+[data-testid="stExpander"] {{
+    background: {WHITE};
+    border: 1px solid rgba(0,0,0,0.06) !important;
+    border-radius: 14px !important;
+    margin-bottom: 20px;
+}}
+[data-testid="stExpander"] summary {{
+    font-family: 'DM Serif Display', serif;
+    font-size: 15px;
+    color: {SLATE};
+}}
+
+/* ── DATAFRAME ── */
+[data-testid="stDataFrame"] {{
+    border-radius: 12px !important;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+}}
+
+/* ── DOWNLOAD BUTTONS ── */
+.stDownloadButton button {{
+    background: {CRIMSON} !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 9px !important;
+    font-weight: 500 !important;
+    padding: 8px 20px !important;
+    transition: all .18s !important;
+}}
+.stDownloadButton button:hover {{
+    background: {CRIMSON_DEEP} !important;
+    box-shadow: 0 4px 14px rgba(192,57,43,0.3) !important;
+    transform: translateY(-1px);
+}}
+
+/* ── SELECT / INPUT styling ── */
+[data-baseweb="select"] > div {{
+    border-color: rgba(0,0,0,0.1) !important;
+    border-radius: 9px !important;
+    background: {WHITE} !important;
+}}
+[data-baseweb="select"] > div:focus-within {{
+    border-color: {CRIMSON} !important;
+    box-shadow: 0 0 0 2px rgba(192,57,43,0.12) !important;
+}}
+[data-testid="stTextInput"] input {{
+    border-color: rgba(0,0,0,0.1) !important;
+    border-radius: 9px !important;
+}}
+[data-testid="stTextInput"] input:focus {{
+    border-color: {CRIMSON} !important;
+    box-shadow: 0 0 0 2px rgba(192,57,43,0.12) !important;
+}}
+
+/* ── SLIDERS ── */
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stThumbValue"] {{
+    background: {CRIMSON} !important;
+    color: white !important;
+}}
+[data-testid="stSlider"] [role="slider"] {{
+    background: {CRIMSON} !important;
+    border-color: {CRIMSON} !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
-COLORS = ['#c0392b','#2980b9','#27ae60','#f39c12','#8e44ad','#16a085','#d35400','#e74c3c','#3498db','#2ecc71']
-CONFIG_FILE = "dashboard_config.json"
+# ══════════════════════════════════════════════════════════════════
+#  CONSTANTS & CONFIG
+# ══════════════════════════════════════════════════════════════════
+CONFIG_FILE = "analytix_config.json"
 
+NULL_VALUES = {
+    'na','n/a','n.a','n.a.','na.','nan','none','null','nil','void',
+    'nd','n.d','n.d.','-','--','---','—','–','_','__','?',
+    'vide','manquant','missing','empty','inconnu','unknown','nr','ns','nc'
+}
+
+DOMAIN_META = {
+    'Financier':    {'icon': '💰', 'color': CRIMSON,   'keys': ['montant','revenu','budget','charge','salaire','marge','prix','facture']},
+    'Commercial':   {'icon': '🤝', 'color': '#185FA5', 'keys': ['client','contrat','commande','vente','region','zone','agence','ca']},
+    'RH':           {'icon': '👥', 'color': '#1D9E75', 'keys': ['employe','effectif','absence','conge','departement','agent','matricule']},
+    'Stocks':       {'icon': '📦', 'color': '#BA7517', 'keys': ['stock','produit','quantite','inventaire','article','entrepot']},
+    'Opérationnel': {'icon': '⚙️', 'color': '#8e44ad', 'keys': ['production','qualite','delai','incident','maintenance','panne','consommation']},
+    'Énergie':      {'icon': '⚡', 'color': '#d35400', 'keys': ['energie','kwh','electricite','gaz','puissance','compteur']},
+    'Informatique': {'icon': '💻', 'color': '#16a085', 'keys': ['pc','ordinateur','imprimante','bureau','portable','processeur']},
+}
+
+ID_KW   = ['id','n°','no','num','numero','numéro','code','ref','reference','matricule',
+            'identifiant','contrat','client','compte','dossier','facture','commande',
+            'ticket','order','invoice','key','serial','siren','siret']
+MEAS_KW = ['montant','somme','total','chiffre','revenu','ca','budget','charge','salaire',
+           'prix','cout','coût','marge','consommation','quantite','volume','poids',
+           'duree','durée','heure','taux','valeur','amount','sales','revenue','cost',
+           'profit','depense','recette','solde','stock','energie','puissance','score',
+           'kpi','indicateur','kwh','effectif','nombre','count','qte','qty']
+
+# ══════════════════════════════════════════════════════════════════
+#  UTILITIES
+# ══════════════════════════════════════════════════════════════════
 def save_config(cfg):
     try:
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -45,17 +548,15 @@ def load_config():
             pass
     return {}
 
-NULL_VALUES = {
-    'na','n/a','n.a','n.a.','na.','nan','none','null','nil','void',
-    'nd','n.d','n.d.','-','--','---','—','–','_','__','?',
-    'vide','manquant','missing','empty','inconnu','unknown','nr','ns','nc'
-}
-
 def normalize_text(s):
     try:
-        return ''.join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').lower().strip()
+        return ''.join(c for c in unicodedata.normalize('NFD', str(s))
+                       if unicodedata.category(c) != 'Mn').lower().strip()
     except Exception:
         return str(s).lower().strip()
+
+def normalize_col(c):
+    return normalize_text(c).replace(' ','').replace('_','').replace('-','').replace('°','')
 
 def parse_number(val):
     if pd.isna(val): return None
@@ -105,6 +606,24 @@ def try_parse_date(series):
     except Exception: pass
     return None, False
 
+def fmt(val):
+    try:
+        if val is None or (isinstance(val, float) and np.isnan(val)): return "N/A"
+        v = float(val)
+        if abs(v) >= 1e9: return f"{v/1e9:.2f} Md"
+        if abs(v) >= 1e6: return f"{v/1e6:.2f} M"
+        if abs(v) >= 1e3: return f"{v/1e3:.1f} K"
+        if v == int(v):   return f"{int(v):,}"
+        return f"{v:,.2f}"
+    except Exception: return str(val)
+
+def pct_change(new, old):
+    return None if old == 0 else (new - old) / abs(old) * 100
+
+# ══════════════════════════════════════════════════════════════════
+#  DATA PROCESSING
+# ══════════════════════════════════════════════════════════════════
+@st.cache_data
 def clean_dataframe(df_in):
     df = df_in.copy()
     rapport = []
@@ -115,10 +634,13 @@ def clean_dataframe(df_in):
     df.columns = new_cols
     before = len(df)
     df = df.dropna(how='all').dropna(axis=1, how='all').reset_index(drop=True)
-    if len(df) < before: rapport.append(f"{before-len(df)} lignes vides supprimées.")
+    if len(df) < before:
+        rapport.append(f"🗑️ {before - len(df)} lignes vides supprimées.")
+
     def replace_nulls(val):
         if pd.isna(val): return np.nan
         return np.nan if normalize_text(str(val)) in NULL_VALUES or str(val).strip()=='' else val
+
     df = df.map(replace_nulls)
     conv_num, conv_date = 0, 0
     for col in df.columns:
@@ -133,8 +655,8 @@ def clean_dataframe(df_in):
             ds = pd.Series(index=df.index, dtype='datetime64[ns]')
             ds[non_null.index] = pd_dates.values
             df[col] = ds; conv_date += 1
-    if conv_num > 0: rapport.append(f"{conv_num} colonne(s) convertie(s) en nombres.")
-    if conv_date > 0: rapport.append(f"{conv_date} colonne(s) convertie(s) en dates.")
+    if conv_num > 0:  rapport.append(f"🔢 {conv_num} colonne(s) convertie(s) en nombres.")
+    if conv_date > 0: rapport.append(f"📅 {conv_date} colonne(s) convertie(s) en dates.")
     return df, rapport
 
 @st.cache_data
@@ -159,17 +681,6 @@ def load_csv_smart(fb):
                 if score > best_score: best_score, best_df = score, df
             except Exception: pass
     return best_df
-
-ID_KW   = ['id','n°','no','num','numero','numéro','code','ref','reference','matricule',
-            'identifiant','contrat','client','compte','dossier','facture','commande',
-            'ticket','order','invoice','key','serial','siren','siret']
-MEAS_KW = ['montant','somme','total','chiffre','revenu','ca','budget','charge','salaire',
-           'prix','cout','coût','marge','consommation','quantite','volume','poids',
-           'duree','durée','heure','taux','valeur','amount','sales','revenue','cost',
-           'profit','depense','recette','solde','stock','energie','puissance','score',
-           'kpi','indicateur','kwh','effectif','nombre','count','qte','qty']
-
-def normalize_col(c): return normalize_text(c).replace(' ','').replace('_','').replace('-','').replace('°','')
 
 def is_year_col(vals, name):
     nm = normalize_col(name)
@@ -206,37 +717,17 @@ def auto_classify(df):
 
 def detect_domain(df):
     txt = ' '.join(normalize_text(str(c)) for c in df.columns)
-    scores = {
-        'Financier':    sum(1 for k in ['montant','revenu','budget','charge','salaire','marge','prix','facture'] if k in txt),
-        'Commercial':   sum(1 for k in ['client','contrat','commande','vente','region','zone','agence','ca'] if k in txt),
-        'RH':           sum(1 for k in ['employe','effectif','absence','conge','departement','agent','matricule'] if k in txt),
-        'Stocks':       sum(1 for k in ['stock','produit','quantite','inventaire','article','entrepot'] if k in txt),
-        'Opérationnel': sum(1 for k in ['production','qualite','delai','incident','maintenance','panne','consommation'] if k in txt),
-        'Énergie':      sum(1 for k in ['energie','kwh','electricite','gaz','puissance','compteur'] if k in txt),
-        'Informatique': sum(1 for k in ['pc','ordinateur','imprimante','bureau','portable','processeur'] if k in txt),
-    }
+    scores = {d: sum(1 for k in meta['keys'] if k in txt) for d, meta in DOMAIN_META.items()}
     best = max(scores, key=scores.get)
     return best if scores[best] > 0 else 'Général'
 
-def fmt(val):
-    try:
-        if val is None or (isinstance(val, float) and np.isnan(val)): return "N/A"
-        v = float(val)
-        if abs(v) >= 1e9: return f"{v/1e9:.2f} Md"
-        if abs(v) >= 1e6: return f"{v/1e6:.2f} M"
-        if abs(v) >= 1e3: return f"{v/1e3:.1f} K"
-        if v == int(v):   return f"{int(v):,}"
-        return f"{v:,.2f}"
-    except Exception: return str(val)
-
-def pct_change(new, old):
-    return None if old == 0 else (new - old) / abs(old) * 100
-
-def chart_style(fig, h=300):
-    fig.update_layout(margin=dict(t=45,b=10,l=10,r=10), height=h, showlegend=False,
-                      plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                      font=dict(size=11,color='#333'), title_font_size=14, title_font_color='#1e2d3d')
-    return fig
+def quality_score(df):
+    completeness = (1 - df.isna().mean().mean()) * 100
+    if completeness >= 98: return "A+", completeness
+    if completeness >= 95: return "A",  completeness
+    if completeness >= 90: return "B+", completeness
+    if completeness >= 80: return "B",  completeness
+    return "C", completeness
 
 def build_time_series(df, col_d, col_m, col_group=None, is_period=False):
     cols = [col_d, col_m] + ([col_group] if col_group and col_group != "Aucun" and col_group in df.columns else [])
@@ -255,38 +746,33 @@ def build_time_series(df, col_d, col_m, col_group=None, is_period=False):
             return ts.groupby([pd.Grouper(key=col_d, freq='ME'), col_group])[col_m].sum().reset_index()
         return ts.groupby(pd.Grouper(key=col_d, freq='ME'))[col_m].sum().reset_index()
 
-def analyse_business(df, measures, categories, dates, periods, domain):
+def analyse_insights(df, measures, categories, dates, periods, domain):
     insights = []
     total = len(df)
     missing_pct = df.isna().mean()
     bad = missing_pct[missing_pct > 0.05]
     if bad.empty:
-        insights.append(('good', f"Qualité parfaite : aucune valeur manquante sur {total:,} enregistrements."))
+        insights.append(('green', '✓', 'Qualité parfaite', f"Aucune valeur manquante sur {total:,} enregistrements."))
     else:
         w = bad.idxmax()
-        insights.append(('alert', f"Données incomplètes : **{w}** — {round(bad[w]*100,1)}% manquants."))
-    for col in measures[:2]:
+        insights.append(('red', '⚠', 'Données incomplètes', f"{w} — {round(bad[w]*100,1)}% de valeurs manquantes."))
+    for col in measures[:1]:
         vals = pd.to_numeric(df[col], errors='coerce').dropna()
         if len(vals) < 2: continue
         mean_v, max_v, total_v = vals.mean(), vals.max(), vals.sum()
         top_pct = (max_v - mean_v) / abs(mean_v) * 100 if mean_v != 0 else 0
         if top_pct > 300:
-            insights.append(('alert', f"**{col}** : max ({fmt(max_v)}) anormalement élevé vs moyenne ({fmt(mean_v)})."))
-        elif top_pct > 100:
-            insights.append(('warn', f"**{col}** : forte dispersion — max {fmt(max_v)}, moy {fmt(mean_v)}."))
+            insights.append(('red', '⚠', 'Anomalie détectée', f"Max de {col} ({fmt(max_v)}) anormalement élevé vs moyenne ({fmt(mean_v)})."))
         else:
-            insights.append(('good', f"**{col}** : total {fmt(total_v)}, moyenne {fmt(mean_v)}."))
-    for col in categories[:2]:
+            insights.append(('green', '↑', 'Mesure principale', f"{col} — total {fmt(total_v)}, moyenne {fmt(mean_v)}."))
+    for col in categories[:1]:
         vc = df[col].value_counts()
         if len(vc) < 2: continue
         top_share = vc.iloc[0] / total * 100
-        top2 = (vc.iloc[0] + vc.iloc[1]) / total * 100 if len(vc) >= 2 else top_share
         if top_share > 60:
-            insights.append(('warn', f"**{col}** : « {vc.index[0]} » = {round(top_share)}% — forte concentration."))
-        elif top2 > 80:
-            insights.append(('info', f"**{col}** : 2 valeurs = {round(top2)}% des données."))
+            insights.append(('amber', '◉', 'Concentration', f"{col} : « {vc.index[0]} » représente {round(top_share)}% des données."))
         else:
-            insights.append(('good', f"**{col}** : {len(vc)} catégories bien réparties."))
+            insights.append(('blue', '≡', 'Distribution', f"{col} : {len(vc)} catégories bien réparties."))
     if dates and measures:
         try:
             ts = df[[dates[0], measures[0]]].copy()
@@ -298,18 +784,194 @@ def analyse_business(df, measures, categories, dates, periods, domain):
                 chg = pct_change(ts.iloc[mid:][measures[0]].mean(), ts.iloc[:mid][measures[0]].mean())
                 if chg is not None:
                     d = "en hausse" if chg > 0 else "en baisse"
-                    insights.append(('good' if chg > 0 else 'alert', f"Tendance **{measures[0]}** : {d} de {abs(round(chg,1))}%."))
+                    icon = "↑" if chg > 0 else "↓"
+                    kind = "green" if chg > 0 else "red"
+                    insights.append((kind, icon, 'Tendance', f"{measures[0]} {d} de {abs(round(chg,1))}% sur la période."))
         except Exception: pass
-    insights.append(('info', f"Domaine : **{domain}** · {total:,} lignes · {len(measures)} mesure(s) · {len(categories)} catégorie(s) · {len(dates)+len(periods)} colonne(s) temporelle(s)."))
-    return insights
+    return insights[:4]
 
-# ══ SIDEBAR ══════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+#  CHART HELPERS
+# ══════════════════════════════════════════════════════════════════
+def apply_chart_style(fig, h=320, legend=False):
+    fig.update_layout(
+        margin=dict(t=20, b=20, l=10, r=10),
+        height=h,
+        showlegend=legend,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='DM Sans, sans-serif', size=11, color=MUTED),
+        title=None,
+        xaxis=dict(showgrid=False, showline=False, zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.05)', showline=False, zeroline=False),
+    )
+    return fig
 
+def make_area_chart(ts_g, x_col, y_col):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=ts_g[x_col], y=ts_g[y_col],
+        mode='lines+markers',
+        line=dict(color=CRIMSON, width=2.5, shape='spline'),
+        fill='tozeroy',
+        fillcolor='rgba(192,57,43,0.08)',
+        marker=dict(size=5, color=CRIMSON, line=dict(width=2, color='white')),
+        hovertemplate='<b>%{y:,.0f}</b><extra></extra>',
+    ))
+    return apply_chart_style(fig, h=260)
+
+def make_bar_chart(grp, x_col, y_col, color=None, h=300, text_col=None):
+    fig = px.bar(
+        grp, x=x_col, y=y_col,
+        color=color if color else x_col,
+        color_discrete_sequence=CHART_COLORS,
+        text=text_col if text_col else y_col,
+    )
+    if text_col:
+        fig.update_traces(texttemplate='%{text}%', textposition='outside', textfont_size=11)
+    else:
+        fig.update_traces(texttemplate='%{text:.3s}', textposition='outside', textfont_size=11)
+    fig.update_traces(marker_line_width=0)
+    return apply_chart_style(fig, h=h)
+
+def make_hbar_chart(grp, x_col, y_col, ascending=False, h=320):
+    fig = px.bar(
+        grp, x=y_col, y=x_col, orientation='h',
+        color=x_col,
+        color_discrete_sequence=CHART_COLORS if not ascending else CHART_COLORS[::-1],
+        text=grp[y_col].apply(fmt),
+    )
+    fig.update_traces(textposition='outside', textfont_size=11, marker_line_width=0)
+    fig.update_layout(yaxis={'categoryorder': 'total ascending'})
+    return apply_chart_style(fig, h=h)
+
+def make_donut(df_cat, col, measures):
+    counts = df_cat[col].astype(str).value_counts().head(8).reset_index()
+    counts.columns = [col, 'Nombre']
+    if measures:
+        try:
+            mv = df_cat.groupby(col)[measures[0]].sum().reset_index()
+            mv.columns = [col, 'Valeur']
+            fig = px.pie(mv.head(8), names=col, values='Valeur',
+                         color_discrete_sequence=CHART_COLORS, hole=0.55)
+        except Exception:
+            fig = px.pie(counts, names=col, values='Nombre',
+                         color_discrete_sequence=CHART_COLORS, hole=0.55)
+    else:
+        fig = px.pie(counts, names=col, values='Nombre',
+                     color_discrete_sequence=CHART_COLORS, hole=0.55)
+    fig.update_traces(textinfo='percent', textposition='inside',
+                      marker=dict(line=dict(color='white', width=2)))
+    return apply_chart_style(fig, h=280, legend=True)
+
+# ══════════════════════════════════════════════════════════════════
+#  HTML COMPONENTS
+# ══════════════════════════════════════════════════════════════════
+def render_header(file_name, n_rows, n_cols, domain, filters):
+    meta = DOMAIN_META.get(domain, {'icon': '📊', 'color': CRIMSON})
+    icon = meta['icon']
+    filtre_info = f" · {sum(len(v) for v in filters.values())} filtre(s) actif(s)" if filters else ""
+    safe_name = file_name.replace('<','').replace('>','').replace('"','')
+    st.markdown(f"""
+    <div style="background:{SLATE};padding:20px 28px;border-radius:16px;
+         display:flex;justify-content:space-between;align-items:center;
+         flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+      <div>
+        <div style="color:white;font-family:'DM Serif Display',serif;
+             font-size:20px;letter-spacing:-0.3px;">{icon} {safe_name}</div>
+        <div style="color:{MUTED};font-size:12px;margin-top:4px;font-family:'DM Sans',sans-serif;">
+          {n_rows:,} enregistrements · {n_cols} colonnes · Domaine : {domain}{filtre_info}
+        </div>
+      </div>
+      <div style="background:{CRIMSON};color:white;padding:8px 18px;
+           border-radius:9px;font-size:12.5px;font-weight:500;
+           font-family:'DM Sans',sans-serif;letter-spacing:0.2px;">
+        {domain}
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def render_kpi(label, value, delta_str, delta_type="neu", color_class="c-red", sub=""):
+    delta_html = ""
+    if delta_str:
+        arrow = "▲" if delta_type == "up" else ("▼" if delta_type == "down" else "—")
+        delta_html = f'<div class="kpi-delta {delta_type}">{arrow} {delta_str}</div>'
+    sub_html = f'<div class="kpi-sub">{sub}</div>' if sub else ""
+    return f"""
+    <div class="kpi-card {color_class}">
+      <div class="kpi-label">{label}</div>
+      <div class="kpi-value">{value}</div>
+      {delta_html}
+      {sub_html}
+    </div>"""
+
+def render_insights(insights):
+    icon_map = {'green': '✓', 'red': '⚠', 'amber': '◉', 'blue': '≡'}
+    cards = ""
+    for kind, icon, title, text in insights:
+        cards += f"""
+        <div class="insight-card">
+          <div class="insight-icon {kind}">{icon}</div>
+          <div class="insight-body">
+            <div class="insight-title">{title}</div>
+            <div class="insight-text">{text}</div>
+          </div>
+        </div>"""
+    st.markdown(f'<div class="insight-grid">{cards}</div>', unsafe_allow_html=True)
+
+def render_section(title):
+    st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
+
+def render_status(domain, n_rows, measures):
+    q_label, q_pct = quality_score(st.session_state.get('df', pd.DataFrame()))
+    bar_w = int(q_pct)
+    st.markdown(f"""
+    <div class="status-bar">
+      <div class="status-items">
+        <div class="status-item"><span class="status-dot dot-green"></span>Moteur analytique actif</div>
+        <div class="status-item"><span class="status-dot dot-green"></span>Nettoyage automatique</div>
+        <div class="status-item"><span class="status-dot dot-green"></span>{len(measures)} mesure(s) détectée(s)</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:12px;color:{MUTED};font-family:'DM Sans',sans-serif;">Qualité données</div>
+        <div style="width:90px;height:5px;background:{CRIMSON_SOFT};border-radius:3px;overflow:hidden;">
+          <div style="width:{bar_w}%;height:100%;background:{CRIMSON};border-radius:3px;"></div>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:{CRIMSON};
+             font-family:'DM Mono',monospace;">{q_label} · {q_pct:.0f}%</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════
+#  SIDEBAR
+# ══════════════════════════════════════════════════════════════════
 saved_cfg = load_config()
 
 with st.sidebar:
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:10px;padding:4px 0 20px;">
+      <div style="width:34px;height:34px;background:#C0392B;border-radius:8px;
+           display:flex;align-items:center;justify-content:center;">
+        <span style="font-size:16px;">📊</span>
+      </div>
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:17px;
+             color:#1A1F2C;letter-spacing:-0.3px;">Analytix</div>
+        <div style="font-size:10px;font-weight:600;color:#C0392B;
+             letter-spacing:0.5px;text-transform:uppercase;">Pro Edition</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("### 📁 Importer les données")
-    uploaded = st.file_uploader("Fichier Excel ou CSV", type=["xlsx","xls","csv"])
+    uploaded = st.file_uploader(
+        "Fichier Excel ou CSV",
+        type=["xlsx","xls","csv"],
+        label_visibility="collapsed",
+        help="Supporte .xlsx, .xls, .csv — détection automatique du format"
+    )
+
     df_raw, clean_rapport = None, []
 
     if uploaded:
@@ -318,10 +980,14 @@ with st.sidebar:
         try:
             if ext in ['xlsx','xls']:
                 xl = pd.ExcelFile(BytesIO(fb))
-                sheet = st.selectbox("Feuille", xl.sheet_names) if len(xl.sheet_names) > 1 else xl.sheet_names[0]
+                if len(xl.sheet_names) > 1:
+                    sheet = st.selectbox("📋 Feuille", xl.sheet_names)
+                else:
+                    sheet = xl.sheet_names[0]
                 df_loaded = load_excel_sheet(fb, sheet)
             else:
                 df_loaded = load_csv_smart(fb)
+
             if df_loaded is not None:
                 df_raw, clean_rapport = clean_dataframe(df_loaded)
         except Exception as e:
@@ -337,26 +1003,38 @@ with st.sidebar:
         init_cat     = valid(cfg.get("categories", auto_cat))
         init_dates   = valid(cfg.get("dates",      auto_dates))
         init_periods = valid(cfg.get("periods",    auto_periods))
-        st.success(f"✅ {len(df_raw):,} lignes · {len(df_raw.columns)} colonnes")
+
+        st.success(f"✅ {len(df_raw):,} lignes · {len(df_raw.columns)} colonnes chargées")
+
         if clean_rapport:
-            with st.expander("🔧 Nettoyage appliqué"):
-                for r in clean_rapport: st.caption(f"• {r}")
-        if auto_ign: st.caption(f"Ignorées : {', '.join(auto_ign[:4])}{'…' if len(auto_ign)>4 else ''}")
+            with st.expander("🔧 Transformations appliquées"):
+                for r in clean_rapport:
+                    st.caption(r)
+        if auto_ign:
+            st.caption(f"Colonnes ignorées : {', '.join(auto_ign[:5])}{'…' if len(auto_ign)>5 else ''}")
+
         st.divider()
-        st.markdown("### ⚙️ Configuration des colonnes")
-        measures_sel   = st.multiselect("📊 Mesures",    all_cols, default=init_meas,    key="sel_meas")
-        categories_sel = st.multiselect("🏷️ Catégories", all_cols, default=init_cat,     key="sel_cat")
-        dates_sel      = st.multiselect("📅 Dates",      all_cols, default=init_dates,   key="sel_dates")
-        periods_sel    = st.multiselect("📆 Périodes",   all_cols, default=init_periods, key="sel_periods")
+        st.markdown("### ⚙️ Configuration")
+        measures_sel   = st.multiselect("📊 Mesures (numériques)",  all_cols, default=init_meas,    key="sel_meas")
+        categories_sel = st.multiselect("🏷️ Catégories (texte)",    all_cols, default=init_cat,     key="sel_cat")
+        dates_sel      = st.multiselect("📅 Dates",                 all_cols, default=init_dates,   key="sel_dates")
+        periods_sel    = st.multiselect("📆 Périodes (num/text)",   all_cols, default=init_periods, key="sel_periods")
+
         col_save, col_reset = st.columns(2)
         with col_save:
             if st.button("💾 Sauvegarder", use_container_width=True):
-                saved_cfg[file_key] = {"measures":measures_sel,"categories":categories_sel,"dates":dates_sel,"periods":periods_sel}
-                save_config(saved_cfg); st.success("✅ Sauvegardé !")
+                saved_cfg[file_key] = {
+                    "measures": measures_sel, "categories": categories_sel,
+                    "dates": dates_sel, "periods": periods_sel
+                }
+                save_config(saved_cfg)
+                st.success("✅ Config sauvegardée !")
         with col_reset:
             if st.button("🔄 Réinitialiser", use_container_width=True):
-                if file_key in saved_cfg: del saved_cfg[file_key]; save_config(saved_cfg)
+                if file_key in saved_cfg:
+                    del saved_cfg[file_key]; save_config(saved_cfg)
                 st.rerun()
+
         st.divider()
         st.markdown("### 🔽 Filtres")
         filters = {}
@@ -367,28 +1045,72 @@ with st.sidebar:
                 sel = st.multiselect(col, vals, default=[], key=f"f_{col}")
                 if sel: filters[col] = sel
 
-# ══ MAIN ══════════════════════════════════════════════════════════
-
+# ══════════════════════════════════════════════════════════════════
+#  LANDING PAGE
+# ══════════════════════════════════════════════════════════════════
 if df_raw is None:
+    st.markdown('<div class="main-wrapper">', unsafe_allow_html=True)
+
     st.markdown("""
-    <div style="text-align:center;padding:80px 20px">
-      <div style="font-size:56px">📊</div>
-      <h2 style="color:#1e2d3d;margin:16px 0 8px">Tableau de bord</h2>
-      <p style="color:#666;font-size:15px;max-width:480px;margin:0 auto">
-        Importez votre fichier Excel ou CSV dans la barre latérale.
-      </p>
-    </div>""", unsafe_allow_html=True)
-    for col, icon, lbl in zip(st.columns(4),["📈","⚙️","👥","📦"],["Financier","Opérationnel","RH","Stocks & Ventes"]):
+    <div style="text-align:center;padding:40px 0 20px;">
+      <div style="font-family:'DM Serif Display',serif;font-size:42px;
+           color:#1A1F2C;letter-spacing:-1px;line-height:1.1;margin-bottom:12px;">
+        Analysez <span style="color:#C0392B;">n'importe quel</span> fichier
+      </div>
+      <div style="font-size:16px;color:#8A94A6;max-width:520px;
+           margin:0 auto;line-height:1.65;">
+        Déposez un CSV ou Excel — le modèle détecte automatiquement le domaine,
+        nettoie les données et génère les visualisations adaptées.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="dropzone">
+      <div class="dz-icon-wrap">📁</div>
+      <div class="dz-title">Glissez votre fichier ici</div>
+      <div class="dz-sub">
+        Détection automatique du domaine métier (Financier, RH, Commercial, Stocks…)<br>
+        Nettoyage intelligent · Classification · Visualisations adaptées · Insights IA
+      </div>
+      <div class="dz-formats">
+        <span class="dz-fmt">.xlsx</span>
+        <span class="dz-fmt">.xls</span>
+        <span class="dz-fmt">.csv</span>
+        <span class="dz-fmt">.tsv</span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    cols = st.columns(4)
+    features = [
+        ("💰", "Financier", "Montants, marges, budgets, CA, charges"),
+        ("🤝", "Commercial", "Clients, contrats, régions, ventes"),
+        ("👥", "Ressources humaines", "Effectifs, absences, départements"),
+        ("📦", "Stocks & Opérationnel", "Inventaires, production, qualité"),
+    ]
+    for col, (icon, title, desc) in zip(cols, features):
         with col:
-            st.markdown(f"""<div style="background:white;border-radius:12px;padding:20px;text-align:center;
-            box-shadow:0 2px 8px rgba(0,0,0,0.06)"><div style="font-size:28px">{icon}</div>
-            <p style="font-size:13px;color:#555;margin:8px 0 0;font-weight:500">{lbl}</p></div>""",
-            unsafe_allow_html=True)
+            st.markdown(f"""
+            <div style="background:white;border:1px solid rgba(0,0,0,0.06);
+                 border-radius:14px;padding:20px;text-align:center;
+                 border-top:3px solid {CRIMSON};">
+              <div style="font-size:28px;margin-bottom:10px;">{icon}</div>
+              <div style="font-family:'DM Serif Display',serif;font-size:14px;
+                   color:{SLATE};margin-bottom:6px;">{title}</div>
+              <div style="font-size:12px;color:{MUTED};line-height:1.5;">{desc}</div>
+            </div>""", unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
+# ══════════════════════════════════════════════════════════════════
+#  APPLY FILTERS
+# ══════════════════════════════════════════════════════════════════
 df = df_raw.copy()
 for col, vals in filters.items():
-    if col in df.columns: df = df[df[col].astype(str).isin(vals)]
+    if col in df.columns:
+        df = df[df[col].astype(str).isin(vals)]
 
 measures   = [c for c in measures_sel   if c in df.columns]
 categories = [c for c in categories_sel if c in df.columns]
@@ -396,33 +1118,29 @@ dates      = [c for c in dates_sel      if c in df.columns]
 periods    = [c for c in periods_sel    if c in df.columns]
 domain     = detect_domain(df)
 
-DOMAIN_ICONS = {'Financier':'💰','Commercial':'🤝','RH':'👥','Stocks':'📦','Opérationnel':'⚙️','Énergie':'⚡','Informatique':'💻','Général':'📊'}
-d_icon = DOMAIN_ICONS.get(domain, '📊')
+st.session_state['df'] = df
 
-# ── EN-TÊTE — VERSION CORRIGÉE SANS F-STRING HTML IMBRIQUÉ ──────────────────
+# ══════════════════════════════════════════════════════════════════
+#  MAIN DASHBOARD
+# ══════════════════════════════════════════════════════════════════
+st.markdown('<div class="main-wrapper">', unsafe_allow_html=True)
+render_header(uploaded.name, len(df), len(df.columns), domain, filters)
 
-file_name_safe = uploaded.name.replace('<','').replace('>','').replace('"','').replace("'",'')
-filtre_info    = f" · {len(df_raw)-len(df):,} exclus par filtres" if filters else ""
+# ── KPI CARDS ────────────────────────────────────────────────────
+kpi_meas = measures[:3]
+kpi_colors = ["c-red", "c-teal", "c-amber", "c-blue"]
 
-header_html = (
-    '<div style="background:#1e2d3d;padding:18px 24px;border-radius:14px;margin-bottom:20px;'
-    'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-    '<div>'
-    f'<div style="color:white;font-size:19px;font-weight:700">{d_icon} Tableau de bord — {file_name_safe}</div>'
-    f'<div style="color:#8899aa;font-size:12px;margin-top:3px">'
-    f'{len(df):,} enregistrements · {len(df.columns)} colonnes · Domaine : {domain}{filtre_info}'
-    '</div></div>'
-    '<div style="background:#c0392b;color:white;padding:7px 16px;border-radius:8px;font-size:12px;font-weight:600">'
-    'Tableau de bord</div></div>'
+kpi_html = '<div class="kpi-outer">'
+# Records card
+n_filtered = len(df_raw) - len(df)
+kpi_html += render_kpi(
+    "Enregistrements", f"{len(df):,}",
+    f"{n_filtered:,} filtrés" if filters else None,
+    "neu" if not filters else "down",
+    "c-red",
+    f"sur {len(df_raw):,} total"
 )
-st.markdown(header_html, unsafe_allow_html=True)
-
-# ── KPIs ─────────────────────────────────────────────────────────────────────
-
-kpi_meas = measures[:4]
-kpi_grid = st.columns(len(kpi_meas) + 1)
-with kpi_grid[0]:
-    st.metric("Enregistrements", f"{len(df):,}", delta=f"{len(df_raw)-len(df):,} filtrés" if filters else None)
+# Measure cards
 for i, col in enumerate(kpi_meas):
     vals = pd.to_numeric(df[col], errors='coerce').dropna()
     if len(vals) == 0: continue
@@ -430,141 +1148,194 @@ for i, col in enumerate(kpi_meas):
     if filters:
         vals_all = pd.to_numeric(df_raw[col], errors='coerce').dropna()
         chg = pct_change(total_v, vals_all.sum())
-        delta_str = f"{round(chg,1)}% vs total" if chg is not None else None
+        delta_str  = f"{round(abs(chg),1)}% vs total" if chg is not None else None
+        delta_type = "up" if (chg or 0) > 0 else "down"
     else:
-        delta_str = f"Moy : {fmt(mean_v)}"
-    with kpi_grid[i+1]:
-        st.metric(col[:22], fmt(total_v), delta=delta_str)
+        delta_str  = None
+        delta_type = "neu"
+    kpi_html += render_kpi(
+        col[:22], fmt(total_v),
+        delta_str, delta_type,
+        kpi_colors[(i+1) % len(kpi_colors)],
+        f"Moy : {fmt(mean_v)}"
+    )
+# Quality card
+q_label, q_pct = quality_score(df)
+kpi_html += render_kpi(
+    "Score qualité", q_label,
+    f"{q_pct:.0f}% complet",
+    "up" if q_pct >= 95 else ("neu" if q_pct >= 80 else "down"),
+    "c-blue",
+    "analyse automatique"
+)
+kpi_html += '</div>'
+st.markdown(kpi_html, unsafe_allow_html=True)
 
-st.markdown("<div style='margin:6px 0'></div>", unsafe_allow_html=True)
+# ── INSIGHTS ─────────────────────────────────────────────────────
+insights = analyse_insights(df, measures, categories, dates, periods, domain)
+if insights:
+    render_section("Insights automatiques")
+    render_insights(insights)
 
-# ── ANALYSE BUSINESS ─────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════
+#  TABS
+# ══════════════════════════════════════════════════════════════════
+tab1, tab2, tab3 = st.tabs(["📊  Vue d'ensemble", "🔍  Analyse détaillée", "🗂️  Données brutes"])
 
-insights = analyse_business(df, measures, categories, dates, periods, domain)
-with st.expander("💡 Analyse automatique", expanded=True):
-    css_map = {'good':'insight-good','alert':'insight-alert','warn':'insight-warn','info':'insight-info'}
-    for kind, msg in insights:
-        st.markdown(f'<div class="{css_map.get(kind,"insight-info")}">{msg}</div>', unsafe_allow_html=True)
-
-st.divider()
-
-# ── ONGLETS ──────────────────────────────────────────────────────────────────
-
-tab1, tab2, tab3 = st.tabs(["📊 Vue d'ensemble", "🔍 Analyse détaillée", "🗂️ Données"])
-
+# ── TAB 1 : VUE D'ENSEMBLE ───────────────────────────────────────
 with tab1:
-    show_cats = [c for c in categories if 2 <= df[c].nunique() <= 30][:6]
-    if show_cats:
-        st.markdown('<div class="section-title">Répartitions</div>', unsafe_allow_html=True)
-        for pair in [show_cats[i:i+2] for i in range(0,len(show_cats),2)]:
-            gcols = st.columns(len(pair))
-            for ci, col in enumerate(pair):
-                with gcols[ci]:
-                    try:
-                        counts = df[col].astype(str).value_counts().head(10).reset_index()
-                        counts.columns = [col,'Nombre']
-                        counts['%'] = (counts['Nombre']/counts['Nombre'].sum()*100).round(1)
-                        if len(counts) <= 6:
-                            fig = px.pie(counts, names=col, values='Nombre', color_discrete_sequence=COLORS, hole=0.5, title=col)
-                            fig.update_traces(textinfo='percent+label', textposition='inside')
-                        else:
-                            fig = px.bar(counts, x='Nombre', y=col, orientation='h', color=col,
-                                         color_discrete_sequence=COLORS, title=col, text='%')
-                            fig.update_traces(texttemplate='%{text}%', textposition='outside')
-                            fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                        chart_style(fig)
-                        st.plotly_chart(fig, use_container_width=True)
-                    except Exception: st.caption(f"Impossible d'afficher {col}")
+    show_cats = [c for c in categories if 2 <= df[c].nunique() <= 30][:4]
 
+    # Time series
     time_shown = False
     if dates and measures:
-        st.markdown('<div class="section-title">Évolution dans le temps</div>', unsafe_allow_html=True)
+        render_section("Évolution temporelle")
         try:
             ts_g = build_time_series(df, dates[0], measures[0])
             if len(ts_g) > 1:
-                fig_t = px.area(ts_g, x=dates[0], y=measures[0], color_discrete_sequence=[COLORS[0]], title=f"Évolution — {measures[0]}")
-                fig_t.update_traces(fillcolor='rgba(192,57,43,0.1)', line_color='#c0392b')
-                chart_style(fig_t, h=280)
-                st.plotly_chart(fig_t, use_container_width=True)
+                st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+                fig_t = make_area_chart(ts_g, dates[0], measures[0])
+                st.plotly_chart(fig_t, use_container_width=True, config={'displayModeBar': False})
+                st.markdown('</div>', unsafe_allow_html=True)
                 time_shown = True
-        except Exception as e: st.warning(f"Graphique temporel : {e}")
+        except Exception as e:
+            st.warning(f"Graphique temporel : {e}")
 
     if not time_shown and periods and measures:
-        st.markdown('<div class="section-title">Évolution par période</div>', unsafe_allow_html=True)
+        render_section("Évolution par période")
         try:
             ts_g = build_time_series(df, periods[0], measures[0], is_period=True)
             if len(ts_g) > 1:
-                fig_t = px.bar(ts_g, x=periods[0], y=measures[0], color_discrete_sequence=[COLORS[0]],
-                               title=f"{measures[0]} par {periods[0]}", text=measures[0])
-                fig_t.update_traces(texttemplate='%{text:.3s}', textposition='outside', marker_line_width=0)
-                chart_style(fig_t, h=280)
-                st.plotly_chart(fig_t, use_container_width=True)
-        except Exception as e: st.warning(f"Graphique période : {e}")
+                st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+                fig_t = make_bar_chart(ts_g, periods[0], measures[0], h=280)
+                st.plotly_chart(fig_t, use_container_width=True, config={'displayModeBar': False})
+                st.markdown('</div>', unsafe_allow_html=True)
+        except Exception as e:
+            st.warning(f"Graphique période : {e}")
 
+    # Distributions
+    if show_cats:
+        render_section("Répartitions par catégorie")
+        for pair in [show_cats[i:i+2] for i in range(0, len(show_cats), 2)]:
+            gcols = st.columns(len(pair))
+            for ci, col in enumerate(pair):
+                with gcols[ci]:
+                    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-family:DM Serif Display,serif;font-size:14px;color:{SLATE};margin-bottom:12px;'>{col}</div>", unsafe_allow_html=True)
+                    try:
+                        if measures:
+                            fig_d = make_donut(df, col, measures)
+                        else:
+                            counts = df[col].astype(str).value_counts().head(8).reset_index()
+                            counts.columns = [col, 'Nombre']
+                            fig_d = px.pie(counts, names=col, values='Nombre',
+                                          color_discrete_sequence=CHART_COLORS, hole=0.5)
+                            fig_d.update_traces(textinfo='percent', textposition='inside',
+                                                marker=dict(line=dict(color='white', width=2)))
+                            apply_chart_style(fig_d, h=280, legend=True)
+                        st.plotly_chart(fig_d, use_container_width=True, config={'displayModeBar': False})
+                    except Exception:
+                        st.caption(f"Impossible d'afficher {col}")
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Ranking
     if show_cats and measures:
-        st.markdown('<div class="section-title">Classement</div>', unsafe_allow_html=True)
+        render_section("Classement")
         try:
-            grp = df.groupby(show_cats[0])[measures[0]].sum().reset_index().sort_values(measures[0], ascending=False)
+            grp = df.groupby(show_cats[0])[measures[0]].sum().reset_index()
             grp[measures[0]] = pd.to_numeric(grp[measures[0]], errors='coerce')
             tot = grp[measures[0]].sum()
-            grp['%'] = (grp[measures[0]]/tot*100).round(1) if tot != 0 else 0
-            c1, c2 = st.columns(2)
-            for col_out, data, title, ascending in [
-                (c1, grp.head(8), f"Top — {show_cats[0]}", False),
-                (c2, grp.tail(8).sort_values(measures[0]), f"Bas — {show_cats[0]}", True)
-            ]:
-                with col_out:
-                    fig = px.bar(data, x=measures[0], y=show_cats[0], orientation='h',
-                                 color=show_cats[0], color_discrete_sequence=COLORS if not ascending else COLORS[::-1],
-                                 title=title, text='%')
-                    fig.update_traces(texttemplate='%{text}%', textposition='outside')
-                    fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                    chart_style(fig, h=320)
-                    st.plotly_chart(fig, use_container_width=True)
-        except Exception as e: st.warning(f"Classement : {e}")
+            grp['%'] = (grp[measures[0]] / tot * 100).round(1) if tot != 0 else 0
+            grp = grp.sort_values(measures[0], ascending=False)
 
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+                st.markdown(f"<div style='font-family:DM Serif Display,serif;font-size:14px;color:{SLATE};margin-bottom:12px;'>Top — {show_cats[0]}</div>", unsafe_allow_html=True)
+                top_grp = grp.head(8).copy()
+                fig_top = make_hbar_chart(top_grp, show_cats[0], measures[0], h=340)
+                st.plotly_chart(fig_top, use_container_width=True, config={'displayModeBar': False})
+                st.markdown('</div>', unsafe_allow_html=True)
+            with c2:
+                st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+                st.markdown(f"<div style='font-family:DM Serif Display,serif;font-size:14px;color:{SLATE};margin-bottom:12px;'>Bas — {show_cats[0]}</div>", unsafe_allow_html=True)
+                bot_grp = grp.tail(8).sort_values(measures[0]).copy()
+                fig_bot = px.bar(
+                    bot_grp, x=measures[0], y=show_cats[0], orientation='h',
+                    color=show_cats[0], color_discrete_sequence=CHART_COLORS[::-1],
+                    text=bot_grp[measures[0]].apply(fmt),
+                )
+                fig_bot.update_traces(textposition='outside', marker_line_width=0)
+                fig_bot.update_layout(yaxis={'categoryorder': 'total ascending'})
+                apply_chart_style(fig_bot, h=340)
+                st.plotly_chart(fig_bot, use_container_width=True, config={'displayModeBar': False})
+                st.markdown('</div>', unsafe_allow_html=True)
+        except Exception as e:
+            st.warning(f"Classement : {e}")
+
+    if not show_cats and not measures and not dates and not periods:
+        st.markdown(f"""
+        <div style="text-align:center;padding:60px 20px;">
+          <div style="font-size:40px;margin-bottom:14px;">⚙️</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:{SLATE};margin-bottom:8px;">
+            Configurez vos colonnes
+          </div>
+          <div style="font-size:13px;color:{MUTED};">
+            Sélectionnez des mesures et catégories dans la barre latérale.
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+# ── TAB 2 : ANALYSE DÉTAILLÉE ────────────────────────────────────
 with tab2:
     good_cats = [c for c in categories if 2 <= df[c].nunique() <= 50]
+    all_time  = dates + periods
+
     if good_cats and measures:
-        st.markdown('<div class="section-title">Analyse croisée</div>', unsafe_allow_html=True)
-        h1,h2,h3,h4 = st.columns(4)
-        with h1: x_col = st.selectbox("Catégorie", good_cats, key="xc")
-        with h2: y_col = st.selectbox("Mesure", measures, key="yc")
-        with h3: agg   = st.selectbox("Calcul", ["Somme","Moyenne","Nombre","Maximum","Minimum"], key="ag")
-        with h4: top_n = st.slider("Top N", 5, 25, 10, key="topn")
+        render_section("Analyse croisée")
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        h1, h2, h3, h4 = st.columns(4)
+        with h1: x_col = st.selectbox("Catégorie", good_cats, key="xc2")
+        with h2: y_col = st.selectbox("Mesure",    measures,  key="yc2")
+        with h3: agg   = st.selectbox("Calcul", ["Somme","Moyenne","Nombre","Maximum","Minimum"], key="ag2")
+        with h4: top_n = st.slider("Top N", 5, 30, 12, key="topn2")
         try:
             agg_map = {"Somme":"sum","Moyenne":"mean","Nombre":"count","Maximum":"max","Minimum":"min"}
-            grp2 = df.groupby(x_col)[y_col].agg(agg_map[agg]).reset_index().sort_values(y_col, ascending=False).head(top_n)
-            fig2 = px.bar(grp2, x=x_col, y=y_col, color=x_col, color_discrete_sequence=COLORS,
-                          title=f"{agg} de {y_col} par {x_col}", text=y_col)
-            fig2.update_traces(texttemplate='%{text:.3s}', textposition='outside')
-            chart_style(fig2, h=360)
-            st.plotly_chart(fig2, use_container_width=True)
-        except Exception as e: st.warning(f"Analyse croisée : {e}")
+            grp2 = df.groupby(x_col)[y_col].agg(agg_map[agg]).reset_index()
+            grp2 = grp2.sort_values(y_col, ascending=False).head(top_n)
+            fig2 = px.bar(grp2, x=x_col, y=y_col, color=x_col,
+                          color_discrete_sequence=CHART_COLORS, text=y_col)
+            fig2.update_traces(texttemplate='%{text:.3s}', textposition='outside', marker_line_width=0)
+            apply_chart_style(fig2, h=380)
+            st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
+        except Exception as e:
+            st.warning(f"Analyse croisée : {e}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    all_time = dates + periods
     if all_time and measures:
-        st.markdown('<div class="section-title">Évolution personnalisée</div>', unsafe_allow_html=True)
-        h1,h2,h3 = st.columns(3)
-        with h1: tc  = st.selectbox("Axe temporel", all_time, key="tc2")
-        with h2: vc  = st.selectbox("Mesure", measures, key="vc2")
-        with h3: cc  = st.selectbox("Découper par", ["Aucun"] + good_cats, key="cc2") if good_cats else "Aucun"
+        render_section("Évolution personnalisée")
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        h1, h2, h3 = st.columns(3)
+        with h1: tc = st.selectbox("Axe temporel", all_time, key="tc2")
+        with h2: vc = st.selectbox("Mesure",       measures, key="vc2")
+        with h3: cc = st.selectbox("Découper par", ["Aucun"] + good_cats, key="cc2") if good_cats else "Aucun"
         try:
             is_p = tc in periods
             ts_g = build_time_series(df, tc, vc, col_group=cc if cc != "Aucun" else None, is_period=is_p)
             if cc != "Aucun" and cc in ts_g.columns:
-                fig3 = px.line(ts_g, x=tc, y=vc, color=cc, color_discrete_sequence=COLORS, title=f"{vc} par {cc}")
-                fig3.update_layout(showlegend=True)
+                fig3 = px.line(ts_g, x=tc, y=vc, color=cc, color_discrete_sequence=CHART_COLORS)
+                fig3.update_traces(line_width=2.5)
+                apply_chart_style(fig3, h=340, legend=True)
             else:
-                fig3 = px.area(ts_g, x=tc, y=vc, color_discrete_sequence=[COLORS[0]], title=f"{vc}")
-                fig3.update_traces(fillcolor='rgba(192,57,43,0.1)', line_color='#c0392b')
-            chart_style(fig3, h=320)
-            st.plotly_chart(fig3, use_container_width=True)
-        except Exception as e: st.warning(f"Évolution : {e}")
+                fig3 = make_area_chart(ts_g, tc, vc)
+            st.plotly_chart(fig3, use_container_width=True, config={'displayModeBar': False})
+        except Exception as e:
+            st.warning(f"Évolution : {e}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     if len(good_cats) >= 2 and measures:
-        st.markdown('<div class="section-title">Comparaison croisée</div>', unsafe_allow_html=True)
-        h1,h2,h3 = st.columns(3)
+        render_section("Comparaison croisée")
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        h1, h2, h3 = st.columns(3)
         with h1: c1s = st.selectbox("Catégorie 1", good_cats, key="c1s")
         with h2:
             rem = [c for c in good_cats if c != c1s]
@@ -573,16 +1344,56 @@ with tab2:
         if c2s:
             try:
                 grp4 = df.groupby([c1s, c2s])[vs].sum().reset_index()
-                fig4 = px.bar(grp4, x=c1s, y=vs, color=c2s, color_discrete_sequence=COLORS,
-                              barmode='group', title=f"{vs} — {c1s} × {c2s}")
-                chart_style(fig4, h=360).update_layout(showlegend=True)
-                st.plotly_chart(fig4, use_container_width=True)
-            except Exception as e: st.warning(f"Comparaison : {e}")
+                fig4 = px.bar(grp4, x=c1s, y=vs, color=c2s, barmode='group',
+                              color_discrete_sequence=CHART_COLORS)
+                fig4.update_traces(marker_line_width=0)
+                apply_chart_style(fig4, h=360, legend=True)
+                st.plotly_chart(fig4, use_container_width=True, config={'displayModeBar': False})
+            except Exception as e:
+                st.warning(f"Comparaison : {e}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
+    if len(measures) >= 2:
+        render_section("Corrélation entre mesures")
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        h1, h2 = st.columns(2)
+        with h1: mx = st.selectbox("Mesure X", measures, key="mx")
+        with h2: my = st.selectbox("Mesure Y", [m for m in measures if m != mx], key="my")
+        try:
+            scatter_df = df[[mx, my]].dropna()
+            scatter_df[mx] = pd.to_numeric(scatter_df[mx], errors='coerce')
+            scatter_df[my] = pd.to_numeric(scatter_df[my], errors='coerce')
+            scatter_df = scatter_df.dropna()
+            color_col = good_cats[0] if good_cats else None
+            if color_col:
+                scatter_df2 = df[[mx, my, color_col]].dropna()
+                fig5 = px.scatter(scatter_df2, x=mx, y=my, color=color_col,
+                                  color_discrete_sequence=CHART_COLORS, opacity=0.7)
+            else:
+                fig5 = px.scatter(scatter_df, x=mx, y=my,
+                                  color_discrete_sequence=[CRIMSON], opacity=0.6)
+            fig5.update_traces(marker_size=7)
+            apply_chart_style(fig5, h=360, legend=bool(color_col))
+            st.plotly_chart(fig5, use_container_width=True, config={'displayModeBar': False})
+            corr = scatter_df[mx].corr(scatter_df[my])
+            if not np.isnan(corr):
+                kind = "forte" if abs(corr) > 0.7 else ("modérée" if abs(corr) > 0.4 else "faible")
+                direction = "positive" if corr > 0 else "négative"
+                st.markdown(f"""
+                <div style="padding:10px 14px;background:{CRIMSON_PALE};border-left:3px solid {CRIMSON};
+                     border-radius:0 8px 8px 0;font-size:13px;color:{CRIMSON_DEEP};margin-top:8px;">
+                  Corrélation {direction} {kind} : r = {corr:.3f}
+                </div>""", unsafe_allow_html=True)
+        except Exception as e:
+            st.warning(f"Corrélation : {e}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ── TAB 3 : DONNÉES BRUTES ───────────────────────────────────────
 with tab3:
-    c1, c2 = st.columns([3,1])
-    with c1: search = st.text_input("Rechercher", "", key="search", placeholder="Mot-clé…")
-    with c2: sort_col = st.selectbox("Trier par", ["—"] + list(df.columns), key="sort_col")
+    c1, c2 = st.columns([3, 1])
+    with c1: search = st.text_input("🔍 Rechercher", "", placeholder="Mot-clé dans les données…")
+    with c2: sort_col = st.selectbox("Trier par", ["—"] + list(df.columns))
+
     disp = df.copy()
     if search:
         try:
@@ -592,18 +1403,27 @@ with tab3:
     if sort_col != "—":
         try: disp = disp.sort_values(sort_col, ascending=False)
         except Exception: pass
-    st.dataframe(disp, height=440, use_container_width=True)
-    st.caption(f"{len(disp):,} lignes affichées sur {len(df):,}")
+
+    st.dataframe(disp, height=460, use_container_width=True)
+    st.markdown(f"<div style='font-size:12px;color:{MUTED};margin:8px 0;'>{len(disp):,} lignes affichées sur {len(df):,}</div>", unsafe_allow_html=True)
+
     c1, c2 = st.columns(2)
     with c1:
         try:
             buf = BytesIO(); disp.to_excel(buf, index=False)
-            st.download_button("📥 Exporter Excel", buf.getvalue(), "tableau_de_bord.xlsx",
-                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("📥 Exporter en Excel", buf.getvalue(),
+                               "export_analytix.xlsx",
+                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               use_container_width=True)
         except Exception: st.warning("Export Excel indisponible.")
     with c2:
         try:
-            st.download_button("📥 Exporter CSV",
+            st.download_button("📥 Exporter en CSV",
                                disp.to_csv(index=False, sep=';').encode('utf-8-sig'),
-                               "tableau_de_bord.csv", "text/csv")
+                               "export_analytix.csv", "text/csv",
+                               use_container_width=True)
         except Exception: st.warning("Export CSV indisponible.")
+
+# ── STATUS BAR ───────────────────────────────────────────────────
+render_status(domain, len(df), measures)
+st.markdown('</div>', unsafe_allow_html=True)
